@@ -1,0 +1,687 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://variax.dev/schemas/video/v1.json",
+  "title": "VideoDocument",
+  "description": "A declarative JSON format for motion-graphics videos, inspired by the Lottie schema.",
+  "type": "object",
+  "required": ["version", "width", "height", "fps", "durationMs", "scenes"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer",
+      "const": 1
+    },
+    "width": {
+      "type": "integer",
+      "exclusiveMinimum": 0
+    },
+    "height": {
+      "type": "integer",
+      "exclusiveMinimum": 0
+    },
+    "fps": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "durationMs": {
+      "type": "number",
+      "exclusiveMinimum": 0
+    },
+    "vars": {
+      "$ref": "#/definitions/Vars"
+    },
+    "assets": {
+      "$ref": "#/definitions/Assets"
+    },
+    "tokens": {
+      "$ref": "#/definitions/Tokens"
+    },
+    "scenes": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Scene"
+      },
+      "minItems": 1
+    }
+  },
+
+  "definitions": {
+
+    "Point": {
+      "type": "array",
+      "items": { "type": "number" },
+      "minItems": 2,
+      "maxItems": 2
+    },
+
+    "EasingName": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["linear", "easeOutCubic", "easeInOut", "easeOutBack", "easeInCubic"]
+        },
+        {
+          "type": "object",
+          "required": ["bezier"],
+          "properties": {
+            "bezier": {
+              "type": "array",
+              "items": { "type": "number" },
+              "minItems": 4,
+              "maxItems": 4
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "NumberKeyframe": {
+      "type": "object",
+      "required": ["t", "value"],
+      "properties": {
+        "t": { "type": "number", "minimum": 0 },
+        "value": { "type": "number" },
+        "easing": { "$ref": "#/definitions/EasingName" }
+      },
+      "additionalProperties": false
+    },
+
+    "PointKeyframe": {
+      "type": "object",
+      "required": ["t", "value"],
+      "properties": {
+        "t": { "type": "number", "minimum": 0 },
+        "value": { "$ref": "#/definitions/Point" },
+        "easing": { "$ref": "#/definitions/EasingName" }
+      },
+      "additionalProperties": false
+    },
+
+    "Generator": {
+      "type": "object",
+      "required": ["generator"],
+      "properties": {
+        "generator": {
+          "type": "object",
+          "required": ["fn"],
+          "properties": {
+            "fn": {
+              "type": "string",
+              "enum": ["sine", "sineStrokes", "sineOscillation", "pulse", "countUp"]
+            },
+            "params": { "type": "object" },
+            "id": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "AnimatedNumber": {
+      "oneOf": [
+        { "type": "number" },
+        {
+          "type": "object",
+          "required": ["keyframes"],
+          "properties": {
+            "keyframes": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/NumberKeyframe" },
+              "minItems": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        { "$ref": "#/definitions/Generator" }
+      ]
+    },
+
+    "AnimatedPoint": {
+      "oneOf": [
+        { "$ref": "#/definitions/Point" },
+        {
+          "type": "object",
+          "required": ["keyframes"],
+          "properties": {
+            "keyframes": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/PointKeyframe" },
+              "minItems": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        { "$ref": "#/definitions/Generator" }
+      ]
+    },
+
+    "AnimatedScale": {
+      "oneOf": [
+        { "type": "number" },
+        { "$ref": "#/definitions/Point" },
+        {
+          "type": "object",
+          "required": ["keyframes"],
+          "properties": {
+            "keyframes": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/NumberKeyframe" },
+              "minItems": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": ["keyframes"],
+          "properties": {
+            "keyframes": {
+              "type": "array",
+              "items": { "$ref": "#/definitions/PointKeyframe" },
+              "minItems": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        { "$ref": "#/definitions/Generator" }
+      ]
+    },
+
+    "Transform": {
+      "type": "object",
+      "properties": {
+        "position": { "$ref": "#/definitions/AnimatedPoint" },
+        "scale": { "$ref": "#/definitions/AnimatedScale" },
+        "rotation": { "$ref": "#/definitions/AnimatedNumber" },
+        "opacity": { "$ref": "#/definitions/AnimatedNumber" },
+        "anchor": { "$ref": "#/definitions/Point" }
+      },
+      "additionalProperties": false
+    },
+
+    "GaussianBlurEffect": {
+      "type": "object",
+      "required": ["type", "radius"],
+      "properties": {
+        "type": { "type": "string", "const": "gaussianBlur" },
+        "radius": { "$ref": "#/definitions/AnimatedNumber" }
+      },
+      "additionalProperties": false
+    },
+
+    "DropShadowEffect": {
+      "type": "object",
+      "required": ["type", "color", "blur"],
+      "properties": {
+        "type": { "type": "string", "const": "dropShadow" },
+        "color": { "type": "string" },
+        "blur": { "$ref": "#/definitions/AnimatedNumber" },
+        "offsetX": { "$ref": "#/definitions/AnimatedNumber" },
+        "offsetY": { "$ref": "#/definitions/AnimatedNumber" }
+      },
+      "additionalProperties": false
+    },
+
+    "DownscaleBlurEffect": {
+      "type": "object",
+      "required": ["type", "radius", "shrink"],
+      "properties": {
+        "type": { "type": "string", "const": "downscaleBlur" },
+        "radius": { "$ref": "#/definitions/AnimatedNumber" },
+        "shrink": { "$ref": "#/definitions/AnimatedNumber" }
+      },
+      "additionalProperties": false
+    },
+
+    "Effect": {
+      "oneOf": [
+        { "$ref": "#/definitions/GaussianBlurEffect" },
+        { "$ref": "#/definitions/DropShadowEffect" },
+        { "$ref": "#/definitions/DownscaleBlurEffect" }
+      ]
+    },
+
+    "Shadow": {
+      "type": "object",
+      "required": ["color", "blur"],
+      "properties": {
+        "color": { "type": "string" },
+        "blur": { "type": "number" },
+        "offsetX": { "type": "number" },
+        "offsetY": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+
+    "Stroke": {
+      "type": "object",
+      "required": ["color", "width"],
+      "properties": {
+        "color": { "type": "string" },
+        "width": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+
+    "Font": {
+      "type": "object",
+      "required": ["size"],
+      "properties": {
+        "asset": { "type": "string" },
+        "size": { "type": "number", "exclusiveMinimum": 0 },
+        "weight": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+
+    "Frame": {
+      "type": "object",
+      "required": ["x", "y", "w", "h"],
+      "properties": {
+        "x": { "type": "number" },
+        "y": { "type": "number" },
+        "w": { "type": "number" },
+        "h": { "type": "number" },
+        "radius": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+
+    "CaptionEntry": {
+      "type": "object",
+      "required": ["t", "text"],
+      "properties": {
+        "t": { "type": "number", "minimum": 0 },
+        "text": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "TransitionConfig": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "type": "string" },
+        "risePx": { "type": "number" },
+        "durationMs": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+
+    "StatBeatEntry": {
+      "type": "object",
+      "required": ["value", "label", "position"],
+      "properties": {
+        "value": {
+          "oneOf": [
+            { "type": "number" },
+            { "type": "string" }
+          ]
+        },
+        "label": { "type": "string" },
+        "position": { "$ref": "#/definitions/Point" },
+        "offsetMs": { "type": "number" },
+        "countUpMs": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+
+    "TemplateString": {
+      "type": "object",
+      "required": ["template"],
+      "properties": {
+        "template": { "type": "string" },
+        "bindings": { "type": "object" }
+      },
+      "additionalProperties": false
+    },
+
+    "ShapeLayer": {
+      "type": "object",
+      "required": ["type", "shape"],
+      "properties": {
+        "type": { "type": "string", "const": "shape" },
+        "shape": {
+          "type": "string",
+          "enum": ["rect", "roundedRect", "ellipse", "path", "line"]
+        },
+        "size": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "radius": { "type": "number" },
+        "fill": { "type": "string" },
+        "stroke": { "$ref": "#/definitions/Stroke" },
+        "shadow": { "$ref": "#/definitions/Shadow" },
+        "path": { "type": "string" },
+        "position": { "$ref": "#/definitions/Point" },
+        "transform": { "$ref": "#/definitions/Transform" },
+        "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
+        "startMs": { "type": "number", "minimum": 0 },
+        "endMs": { "type": "number", "minimum": 0 },
+        "persist": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+
+    "TextLayer": {
+      "type": "object",
+      "required": ["type", "content"],
+      "properties": {
+        "type": { "type": "string", "const": "text" },
+        "content": {
+          "oneOf": [
+            { "type": "string" },
+            { "$ref": "#/definitions/TemplateString" }
+          ]
+        },
+        "font": { "$ref": "#/definitions/Font" },
+        "color": { "type": "string" },
+        "align": { "type": "string", "enum": ["left", "center", "right"] },
+        "position": { "$ref": "#/definitions/Point" },
+        "maxWidth": { "type": "number" },
+        "shrinkToFit": { "type": "boolean" },
+        "minSize": { "type": "number" },
+        "wrap": { "type": "boolean" },
+        "lineHeight": { "type": "number" },
+        "transform": { "$ref": "#/definitions/Transform" },
+        "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
+        "startMs": { "type": "number", "minimum": 0 },
+        "endMs": { "type": "number", "minimum": 0 },
+        "persist": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+
+    "ImageLayer": {
+      "type": "object",
+      "required": ["type", "asset"],
+      "properties": {
+        "type": { "type": "string", "const": "image" },
+        "asset": { "type": "string" },
+        "frame": { "$ref": "#/definitions/Frame" },
+        "transform": { "$ref": "#/definitions/Transform" },
+        "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
+        "startMs": { "type": "number", "minimum": 0 },
+        "endMs": { "type": "number", "minimum": 0 },
+        "persist": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+
+    "GroupLayer": {
+      "type": "object",
+      "required": ["type", "children"],
+      "properties": {
+        "type": { "type": "string", "const": "group" },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Layer" }
+        },
+        "position": { "$ref": "#/definitions/Point" },
+        "transform": { "$ref": "#/definitions/Transform" },
+        "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
+        "startMs": { "type": "number", "minimum": 0 },
+        "endMs": { "type": "number", "minimum": 0 },
+        "persist": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+
+    "RefLayer": {
+      "type": "object",
+      "required": ["type", "src"],
+      "properties": {
+        "type": { "type": "string", "const": "ref" },
+        "src": { "type": "string", "pattern": "^#" },
+        "params": { "type": "object" },
+        "color": { "type": "string" },
+        "size": { "type": "number" },
+        "position": { "$ref": "#/definitions/Point" },
+        "transform": { "$ref": "#/definitions/Transform" },
+        "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
+        "startMs": { "type": "number", "minimum": 0 },
+        "endMs": { "type": "number", "minimum": 0 },
+        "persist": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+
+    "RepeaterLayer": {
+      "type": "object",
+      "required": ["type", "count", "child"],
+      "properties": {
+        "type": { "type": "string", "const": "repeater" },
+        "count": { "type": "integer", "minimum": 1 },
+        "phaseOffsetMs": { "type": "number" },
+        "child": { "$ref": "#/definitions/Layer" },
+        "transform": { "$ref": "#/definitions/Transform" },
+        "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
+        "startMs": { "type": "number", "minimum": 0 },
+        "endMs": { "type": "number", "minimum": 0 },
+        "persist": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+
+    "CaptionSequenceLayer": {
+      "type": "object",
+      "required": ["type", "captions"],
+      "properties": {
+        "type": { "type": "string", "const": "captionSequence" },
+        "captions": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/CaptionEntry" },
+          "minItems": 1
+        },
+        "position": { "$ref": "#/definitions/Point" },
+        "font": { "$ref": "#/definitions/Font" },
+        "color": { "type": "string" },
+        "maxWidth": { "type": "number" },
+        "shrinkToFit": { "type": "boolean" },
+        "entrance": { "$ref": "#/definitions/TransitionConfig" },
+        "exit": { "$ref": "#/definitions/TransitionConfig" },
+        "transform": { "$ref": "#/definitions/Transform" },
+        "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
+        "startMs": { "type": "number", "minimum": 0 },
+        "endMs": { "type": "number", "minimum": 0 },
+        "persist": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+
+    "CompositeMaskLayer": {
+      "type": "object",
+      "required": ["type", "source", "mask"],
+      "properties": {
+        "type": { "type": "string", "const": "compositeMask" },
+        "source": { "type": "string" },
+        "maskEffect": { "$ref": "#/definitions/Effect" },
+        "mask": { "$ref": "#/definitions/Layer" },
+        "transform": { "$ref": "#/definitions/Transform" },
+        "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
+        "startMs": { "type": "number", "minimum": 0 },
+        "endMs": { "type": "number", "minimum": 0 },
+        "persist": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+
+    "DataVizLayer": {
+      "type": "object",
+      "required": ["type", "viz", "data"],
+      "properties": {
+        "type": { "type": "string", "const": "dataViz" },
+        "viz": { "type": "string" },
+        "data": { "type": "object" },
+        "area": {
+          "type": "object",
+          "properties": {
+            "top": { "type": "number" },
+            "bottom": { "type": "number" },
+            "left": { "type": "number" },
+            "right": { "type": "number" }
+          },
+          "additionalProperties": false
+        },
+        "style": { "type": "object" },
+        "animation": { "type": "object" },
+        "transform": { "$ref": "#/definitions/Transform" },
+        "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
+        "startMs": { "type": "number", "minimum": 0 },
+        "endMs": { "type": "number", "minimum": 0 },
+        "persist": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+
+    "StatBeatLayer": {
+      "type": "object",
+      "required": ["type", "beats"],
+      "properties": {
+        "type": { "type": "string", "const": "statBeat" },
+        "beats": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/StatBeatEntry" },
+          "minItems": 1
+        },
+        "valueFont": { "$ref": "#/definitions/Font" },
+        "valueColor": { "type": "string" },
+        "labelFont": { "$ref": "#/definitions/Font" },
+        "labelColor": { "type": "string" },
+        "entrance": { "type": "string" },
+        "easing": { "$ref": "#/definitions/EasingName" },
+        "transform": { "$ref": "#/definitions/Transform" },
+        "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
+        "startMs": { "type": "number", "minimum": 0 },
+        "endMs": { "type": "number", "minimum": 0 },
+        "persist": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+
+    "Layer": {
+      "oneOf": [
+        { "$ref": "#/definitions/ShapeLayer" },
+        { "$ref": "#/definitions/TextLayer" },
+        { "$ref": "#/definitions/ImageLayer" },
+        { "$ref": "#/definitions/GroupLayer" },
+        { "$ref": "#/definitions/RefLayer" },
+        { "$ref": "#/definitions/RepeaterLayer" },
+        { "$ref": "#/definitions/CaptionSequenceLayer" },
+        { "$ref": "#/definitions/CompositeMaskLayer" },
+        { "$ref": "#/definitions/DataVizLayer" },
+        { "$ref": "#/definitions/StatBeatLayer" }
+      ]
+    },
+
+    "Background": {
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "required": ["type", "stops"],
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["linearGradient", "radialGradient"]
+            },
+            "stops": {
+              "type": "array",
+              "items": { "type": "string" },
+              "minItems": 2
+            },
+            "angle": { "type": "number" }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+
+    "Scene": {
+      "type": "object",
+      "required": ["id", "startMs", "endMs", "layers"],
+      "properties": {
+        "id": { "type": "string" },
+        "startMs": { "type": "number", "minimum": 0 },
+        "endMs": { "type": "number", "minimum": 0 },
+        "background": { "$ref": "#/definitions/Background" },
+        "layers": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/Layer" }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "VarDefinition": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "boolean"]
+        },
+        "required": { "type": "boolean" },
+        "default": {}
+      },
+      "additionalProperties": false
+    },
+
+    "Vars": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/VarDefinition"
+      }
+    },
+
+    "ImageAsset": {
+      "type": "object",
+      "required": ["type", "src"],
+      "properties": {
+        "type": { "type": "string", "const": "image" },
+        "src": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "FontAsset": {
+      "type": "object",
+      "required": ["type", "family", "src"],
+      "properties": {
+        "type": { "type": "string", "const": "font" },
+        "family": { "type": "string" },
+        "weight": { "type": "number" },
+        "src": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+
+    "Asset": {
+      "oneOf": [
+        { "$ref": "#/definitions/ImageAsset" },
+        { "$ref": "#/definitions/FontAsset" }
+      ]
+    },
+
+    "Assets": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/Asset"
+      }
+    },
+
+    "Tokens": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  }
+}

@@ -62,19 +62,32 @@ VideoDocument
 - **Generators are a closed registry**: unknown generator names are validation errors, not runtime failures.
 - **Scenes are first-class**: named segments with their own layer stacks, not flat in/out points.
 
-## Repo structure (planned)
+## Repo structure
 
 ```
 schema/
-├── json/              # canonical JSON Schema (v1.json)
-├── typescript/        # generated TypeScript types
-├── go/                # generated Go types
-├── examples/          # example video documents (taunt, lineage templates)
+├── json/v1.json             # canonical JSON Schema (source of truth)
+├── typescript/src/v1.ts     # generated TypeScript types (committed)
+├── go/v1.go                 # generated Go types (committed)
+├── tmp/examples/            # local-only example documents (gitignored)
+├── Makefile
 └── CLAUDE.md
 ```
+
+## Build commands
+
+```sh
+make generate       # regenerate TypeScript + Go types from json/v1.json
+make generate-ts    # regenerate TypeScript types only
+make generate-go    # regenerate Go types only
+make validate       # validate tmp/examples/*.json against the schema
+make check          # validate + verify generated types are up to date
+```
+
+TypeScript types require `npm install` in `typescript/` first. Go types require `go-jsonschema` (`go install github.com/atombender/go-jsonschema@latest`).
 
 ## Conventions
 
 - Schema version field: integer (`"version": 1`), bump on breaking changes.
-- Template names in examples use kebab-case file names matching the template id (e.g., `taunt.json`, `lineage.json`).
-- Type generation should be automated from the canonical JSON Schema — don't hand-maintain types in multiple languages.
+- TypeScript and Go types are generated and committed — don't hand-edit them. Modify `json/v1.json` and run `make generate`.
+- Example documents live in `tmp/examples/` (gitignored) for local validation only.
