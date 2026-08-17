@@ -1,3 +1,5 @@
+import type { Layer } from '@variax-ai/video-schema'
+
 export type FrameDrawer = (ctx: CanvasRenderingContext2D, tMs: number) => void
 
 export interface ComponentProps {
@@ -27,17 +29,12 @@ export interface RendererOptions {
   images: Record<string, CanvasImageSource>
   components?: Record<string, ComponentDrawer>
   dataVizRenderers?: Record<string, DataVizDrawer>
+  createCanvas?: (width: number, height: number) => HTMLCanvasElement | OffscreenCanvas
 }
 
 export interface ResolveContext {
   vars: Record<string, string | number | boolean>
   tokens: Record<string, string>
-}
-
-export interface FontInfo {
-  family: string
-  weight: number
-  size: number
 }
 
 export interface RenderContext {
@@ -47,13 +44,11 @@ export interface RenderContext {
   options: RendererOptions
   fonts: Record<string, { family: string; weight: number }>
   drawLayer: (ctx: CanvasRenderingContext2D, layer: Layer, tMs: number) => void
-  persistedLayers: PersistedLayer[]
   sceneStartMs: number
 }
 
 export interface PersistedLayer {
   layer: Layer
   sceneEndMs: number
+  sceneStartMs: number
 }
-
-import type { Layer } from '@variax-ai/video-schema'

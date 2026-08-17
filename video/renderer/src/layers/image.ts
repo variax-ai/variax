@@ -1,6 +1,7 @@
 import type { ImageLayer } from '@variax-ai/video-schema'
 import type { RenderContext } from '../types'
 import { getDownscaleBlurParams } from '../effects'
+import { createOffscreenCanvas } from '../canvas'
 
 function roundRectPath(
   ctx: CanvasRenderingContext2D,
@@ -19,14 +20,13 @@ function roundRectPath(
   ctx.closePath()
 }
 
-let smudgeBuffer: HTMLCanvasElement | null = null
-
 function drawSmudgedImage(
   ctx: CanvasRenderingContext2D,
   image: CanvasImageSource,
   box: { x: number; y: number; w: number; h: number; radius?: number },
   blurPx: number,
   shrink: number,
+  rctx: RenderContext,
 ): void {
   ctx.save()
   if (box.radius) {
@@ -34,13 +34,13 @@ function drawSmudgedImage(
     ctx.clip()
   }
 
-  const tiny = (smudgeBuffer ??= document.createElement('canvas'))
-  tiny.width = Math.max(1, Math.round(box.w / shrink))
-  tiny.height = Math.max(1, Math.round(box.h / shrink))
+  const tinyW = Math.max(1, Math.round(box.w / shrink))
+  const tinyH = Math.max(1, Math.round(box.h / shrink))
+  const tiny = createOffscreenCanvas(tinyW, tinyH, rctx)
   const tctx = tiny.getContext('2d')
   if (tctx) {
     tctx.filter = `blur(${blurPx / shrink}px)`
-    tctx.drawImage(image, 0, 0, tiny.width, tiny.height)
+    tctx.drawImage(image, 0, 0, tinyW, tinyH)
     ctx.imageSmoothingEnabled = true
     ctx.drawImage(tiny, box.x, box.y, box.w, box.h)
   }
@@ -65,7 +65,7 @@ export function drawImageLayer(
 
   const dsb = layer.effects ? getDownscaleBlurParams(layer.effects, tMs) : null
   if (dsb && dsb.radius > 0) {
-    drawSmudgedImage(ctx, image, frame, dsb.radius, dsb.shrink || 20)
+    drawSmudgedImage(ctx, image, frame, dsb.radius, dsb.shrink || 20, rctx)
     return
   }
 

@@ -30,7 +30,7 @@ export function applyTransform(
 
   if (transform.rotation) {
     const r = evaluateNumber(transform.rotation, tMs)
-    ctx.rotate(r)
+    ctx.rotate((r * Math.PI) / 180)
   }
 
   if (anchor) {

@@ -7,7 +7,8 @@ function findActiveScene(doc: VideoDocument, tMs: number): Scene | undefined {
   for (const scene of doc.scenes) {
     if (tMs >= scene.startMs && tMs < scene.endMs) return scene
   }
-  return doc.scenes[doc.scenes.length - 1]
+  const last = doc.scenes[doc.scenes.length - 1]
+  return last && tMs >= last.endMs ? last : undefined
 }
 
 function collectPersistedLayers(doc: VideoDocument, currentScene: Scene): PersistedLayer[] {
@@ -17,7 +18,7 @@ function collectPersistedLayers(doc: VideoDocument, currentScene: Scene): Persis
     if (scene.endMs > currentScene.startMs) continue
     for (const layer of scene.layers) {
       if ('persist' in layer && layer.persist) {
-        persisted.push({ layer, sceneEndMs: scene.endMs })
+        persisted.push({ layer, sceneEndMs: scene.endMs, sceneStartMs: scene.startMs })
       }
     }
   }
@@ -39,7 +40,10 @@ export function drawFrame(
 
   const persisted = collectPersistedLayers(doc, scene)
   for (const p of persisted) {
+    const savedStartMs = rctx.sceneStartMs
+    rctx.sceneStartMs = p.sceneStartMs
     drawLayer(ctx, p.layer, tMs, rctx)
+    rctx.sceneStartMs = savedStartMs
   }
 
   for (const layer of scene.layers) {

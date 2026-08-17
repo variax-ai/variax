@@ -45,7 +45,7 @@ export function resolveContent(content: string | TemplateString, rctx: RenderCon
       } else {
         value = String(binding)
       }
-      result = result.replace(`{${key}}`, value)
+      result = result.replaceAll(`{${key}}`, value)
     }
   }
   return result
@@ -94,7 +94,7 @@ export function fillFittedText(
   family: string,
   minPx = 24,
 ): void {
-  const key = `${weight}|${family}|${basePx}|${maxWidth}|${text}`
+  const key = `${weight}|${family}|${basePx}|${maxWidth}|${minPx}|${text}`
   let px = fittedCache.get(key)
   if (px === undefined) {
     ctx.font = `${weight} ${basePx}px ${family}`

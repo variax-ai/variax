@@ -1,6 +1,7 @@
 import type { CompositeMaskLayer } from '@variax-ai/video-schema'
 import type { RenderContext } from '../types'
 import { applyPreDrawEffects } from '../effects'
+import { createOffscreenCanvas } from '../canvas'
 
 export function drawCompositeMaskLayer(
   ctx: CanvasRenderingContext2D,
@@ -14,18 +15,14 @@ export function drawCompositeMaskLayer(
   const w = rctx.width
   const h = rctx.height
 
-  const maskCanvas = document.createElement('canvas')
-  maskCanvas.width = w
-  maskCanvas.height = h
-  const maskCtx = maskCanvas.getContext('2d')
+  const maskCanvas = createOffscreenCanvas(w, h, rctx)
+  const maskCtx = maskCanvas.getContext('2d') as CanvasRenderingContext2D | null
   if (!maskCtx) return
 
   rctx.drawLayer(maskCtx, layer.mask, tMs)
 
-  const sourceCanvas = document.createElement('canvas')
-  sourceCanvas.width = w
-  sourceCanvas.height = h
-  const sourceCtx = sourceCanvas.getContext('2d')
+  const sourceCanvas = createOffscreenCanvas(w, h, rctx)
+  const sourceCtx = sourceCanvas.getContext('2d') as CanvasRenderingContext2D | null
   if (!sourceCtx) return
 
   if (layer.maskEffect) {

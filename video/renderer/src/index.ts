@@ -39,7 +39,6 @@ export function createDocumentDrawer(
     drawLayer: (ctx: CanvasRenderingContext2D, layer: Layer, tMs: number) => {
       drawLayerImpl(ctx, layer, tMs, rctx)
     },
-    persistedLayers: [],
     sceneStartMs: 0,
   }
 

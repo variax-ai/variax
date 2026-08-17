@@ -17,7 +17,7 @@ export function drawBackground(
     return
   }
 
-  const stops = background.stops.map((s) => resolveString(s, rctx))
+  const stops = background.stops.map((s) => resolveString(s, rctx) || 'transparent')
 
   let gradient: CanvasGradient
   if (background.type === 'radialGradient') {

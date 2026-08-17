@@ -1,7 +1,6 @@
 import type { StatBeatLayer } from '@variax-ai/video-schema'
 import type { RenderContext } from '../types'
-import { resolveColor } from '../resolve'
-import { resolveNumberVar } from '../resolve'
+import { resolveColor, resolveNumberVar } from '../resolve'
 import { buildFontString, fillFittedText } from '../text'
 import { easeOutCubic, easeOutBack, resolveEasing } from '../easing'
 

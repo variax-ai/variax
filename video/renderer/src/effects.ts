@@ -30,11 +30,6 @@ export function applyPreDrawEffects(
   }
 }
 
-export function hasDownscaleBlur(effects: Effect[] | undefined): boolean {
-  if (!effects) return false
-  return effects.some((e) => e.type === 'downscaleBlur')
-}
-
 export function getDownscaleBlurParams(
   effects: Effect[],
   tMs: number,
