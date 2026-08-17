@@ -4,13 +4,52 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A declarative JSON format for motion-graphics videos, inspired by the Lottie schema. It keeps Lottie's keyframe model (time + value + easing) but drops the After Effects baggage (shorthand property names, frame-based time, float color arrays, 3D, cameras, expressions), and adds data bindings, scenes, tokens, and procedural generators.
+A monorepo for the Variax platform — tools for declarative motion-graphics content. Currently focused on the **video** domain (a declarative JSON format for motion-graphics videos, inspired by Lottie), with future plans for text, image, and other content types.
 
-This repo is the **single source of truth** for the schema. It is language-agnostic (the canonical format is JSON), with generated type definitions for TypeScript and Go that downstream renderers and services consume.
+Organization: **variax-ai** on GitHub. Repo: `variax`.
 
-Organization: **Variax** on GitHub. Repo: `schema`.
+## Monorepo structure
 
-## Architecture
+```
+variax/
+├── video/
+│   ├── schema/          # @variax-ai/video-schema — canonical JSON Schema + generated TS/Go types
+│   ├── renderer/        # @variax-ai/video-renderer — Canvas2D renderer (browser + Node.js)
+│   └── extractor/       # @variax-ai/video-extractor — video → schema inference (scaffold)
+├── demo/                # @variax-ai/demo — static GitHub Pages demo site (private)
+├── package.json         # npm workspaces root
+├── tsconfig.base.json   # shared TypeScript config
+└── Makefile             # delegates generate/validate/check to video/schema/
+```
+
+Uses **npm workspaces** (`"workspaces": ["video/*", "demo"]`).
+
+## Packages
+
+### `@variax-ai/video-schema` (`video/schema/`)
+
+The **single source of truth** for the video format. The canonical format is JSON Schema (`json/v1.json`), with generated type definitions for TypeScript and Go.
+
+- TypeScript types are generated and committed — don't hand-edit `src/v1.ts`. Modify `json/v1.json` and run `make generate`.
+- Go types are generated and committed — don't hand-edit `go/v1.go`.
+
+### `@variax-ai/video-renderer` (`video/renderer/`)
+
+Framework-agnostic Canvas2D renderer that interprets a `VideoDocument` JSON and renders frame-by-frame. Zero runtime dependencies (only depends on `@variax-ai/video-schema`).
+
+- Works in browser and Node.js (Node.js requires a canvas polyfill like `@napi-rs/canvas`)
+- Built with tsup (ESM + CJS)
+- Tests use vitest with jsdom
+
+### `@variax-ai/video-extractor` (`video/extractor/`)
+
+Video-to-schema inference — takes a video and extracts a `VideoDocument`. Currently a scaffold (stub only).
+
+### `@variax-ai/demo` (`demo/`)
+
+Static demo site (Vite), deployed to GitHub Pages. Shows the renderer in action and has a placeholder for the extractor.
+
+## Video schema design
 
 ### Schema hierarchy
 
@@ -27,24 +66,27 @@ VideoDocument
 
 ### Layer types
 
-| Type | Origin | Purpose |
-|------|--------|---------|
-| `shape` | Lottie | rect, ellipse, path, line with fill/stroke |
-| `text` | Lottie | single/multiline, auto-shrink, wrap, data-bound content |
-| `image` | Lottie | asset ref with frame rect and clip |
-| `group` | Lottie | children[] with own transform |
-| `ref` | New | reusable component reference (`#id`) |
-| `repeater` | Lottie | N copies with phaseOffsetMs |
-| `captionSequence` | New | timed text entries with entrance/exit transitions |
-| `compositeMask` | New | re-draw source through different effect pipeline, clipped to mask |
-| `dataViz` | New | data-driven visualization (tree, etc.) |
-| `statBeat` | New | animated counter(s) with labels |
+| Type | Purpose |
+|------|---------|
+| `shape` | rect, ellipse, path, line with fill/stroke |
+| `text` | single/multiline, auto-shrink, wrap, data-bound content |
+| `image` | asset ref with frame rect and clip |
+| `group` | children[] with own transform |
+| `ref` | reusable component reference (`#id`) |
+| `repeater` | N copies with phaseOffsetMs |
+| `captionSequence` | timed text entries with entrance/exit transitions |
+| `compositeMask` | re-draw source through different effect pipeline, clipped to mask |
+| `dataViz` | data-driven visualization (tree, etc.) |
+| `statBeat` | animated counter(s) with labels |
 
-### Animation system (three tiers)
+### Key design principles
 
-1. **Static** — plain value (`"opacity": 1`)
-2. **Keyframes** — `{ "keyframes": [{ "t": ms, "value": T, "easing"?: EasingName }] }`
-3. **Generators** — `{ "generator": { "fn": "sine", "params": {...}, "id"?: "handPath" } }` — named procedural functions, closed registry, never eval
+- **DATA not CODE**: no arbitrary expressions, purely declarative
+- **Time in milliseconds**, not frames
+- **Colors as hex strings** (`"#6c4df6"`)
+- **Full property names** (`position`, `opacity`), not Lottie shorthand
+- **Generators are a closed registry**: unknown names are validation errors
+- **Scenes are first-class**: named segments with their own layer stacks
 
 ### Ref strings
 
@@ -53,41 +95,29 @@ VideoDocument
 - `"#componentId"` — reusable component reference
 - `"$computed:name"` — renderer-calculated value
 
-## Key design principles
-
-- **DATA not CODE**: no arbitrary expressions, no Turing-complete logic, no conditional layers. The format is purely declarative; renderers interpret it.
-- **Time in milliseconds**, not frames — portable across frame rates.
-- **Colors as hex strings** (`"#6c4df6"`), not Lottie's float arrays.
-- **Full property names** (`position`, `opacity`, `blur`), not Lottie shorthand (`p`, `o`, `ty`).
-- **Generators are a closed registry**: unknown generator names are validation errors, not runtime failures.
-- **Scenes are first-class**: named segments with their own layer stacks, not flat in/out points.
-
-## Repo structure
-
-```
-schema/
-├── json/v1.json             # canonical JSON Schema (source of truth)
-├── typescript/src/v1.ts     # generated TypeScript types (committed)
-├── go/v1.go                 # generated Go types (committed)
-├── tmp/examples/            # local-only example documents (gitignored)
-├── Makefile
-└── CLAUDE.md
-```
-
 ## Build commands
 
 ```sh
-make generate       # regenerate TypeScript + Go types from json/v1.json
-make generate-ts    # regenerate TypeScript types only
-make generate-go    # regenerate Go types only
-make validate       # validate tmp/examples/*.json against the schema
-make check          # validate + verify generated types are up to date
-```
+# Root commands
+npm install              # install all workspace dependencies
+npm run build            # build all packages (schema first, then others)
+npm test                 # run tests across all packages
+npm run typecheck        # type-check all packages
+npm run generate         # regenerate TS + Go types from json/v1.json
 
-TypeScript types require `npm install` in `typescript/` first. Go types require `go-jsonschema` (`go install github.com/atombender/go-jsonschema@latest`).
+# Schema-specific
+make generate            # regenerate TS + Go types
+make validate            # validate tmp/examples/*.json against the schema
+make check               # validate + verify generated types are up to date
+
+# Demo
+npm run dev -w @variax-ai/demo    # start demo dev server
+npm run build -w @variax-ai/demo  # build demo for deployment
+```
 
 ## Conventions
 
 - Schema version field: integer (`"version": 1`), bump on breaking changes.
-- TypeScript and Go types are generated and committed — don't hand-edit them. Modify `json/v1.json` and run `make generate`.
-- Example documents live in `tmp/examples/` (gitignored) for local validation only.
+- TypeScript and Go types in `video/schema/` are generated — modify `json/v1.json` and run `make generate`.
+- Example documents live in `video/schema/tmp/examples/` (gitignored).
+- New domain folders (text, image, etc.) are added as siblings to `video/` and included in the root `package.json` workspaces array.
