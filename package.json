@@ -1,0 +1,17 @@
+{
+  "name": "variax",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": [
+    "video/*",
+    "demo"
+  ],
+  "scripts": {
+    "build": "npm run build -w @variax-ai/video-schema && npm run build -w @variax-ai/video-renderer && npm run build -w @variax-ai/video-extractor",
+    "test": "npm test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "generate": "npm run generate -w @variax-ai/video-schema"
+  },
+  "license": "MIT"
+}
