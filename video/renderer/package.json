@@ -1,0 +1,32 @@
+{
+  "name": "@variax-ai/video-renderer",
+  "version": "0.1.0",
+  "description": "Framework-agnostic Canvas2D renderer for Variax video documents",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@variax-ai/video-schema": "0.1.0"
+  },
+  "devDependencies": {
+    "jsdom": "^26.1.0",
+    "tsup": "^8.0.0",
+    "vitest": "^4.1.6"
+  },
+  "license": "MIT"
+}

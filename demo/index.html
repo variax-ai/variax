@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Variax Demo</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #e5e5e5; }
+
+      header {
+        padding: 1rem 2rem;
+        border-bottom: 1px solid #262626;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+      }
+      header h1 { font-size: 1.25rem; font-weight: 600; }
+
+      .tabs {
+        display: flex;
+        gap: 0.5rem;
+        padding: 0 2rem;
+        border-bottom: 1px solid #262626;
+      }
+      .tab {
+        padding: 0.75rem 1rem;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        color: #a3a3a3;
+        font-size: 0.875rem;
+      }
+      .tab.active {
+        color: #e5e5e5;
+        border-bottom-color: #6c4df6;
+      }
+
+      .panel { display: none; padding: 2rem; }
+      .panel.active { display: flex; gap: 2rem; }
+
+      .editor-pane {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+      .editor-pane textarea {
+        flex: 1;
+        min-height: 400px;
+        background: #171717;
+        color: #e5e5e5;
+        border: 1px solid #262626;
+        border-radius: 8px;
+        padding: 1rem;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        font-size: 0.8125rem;
+        resize: none;
+        tab-size: 2;
+      }
+
+      .preview-pane {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+      }
+      canvas {
+        background: #000;
+        border-radius: 8px;
+        max-height: 500px;
+        width: auto;
+      }
+
+      .controls {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+      }
+      button {
+        padding: 0.5rem 1rem;
+        background: #6c4df6;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.875rem;
+      }
+      button:hover { background: #5b3de6; }
+      button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+      .time-display {
+        font-family: 'SF Mono', 'Fira Code', monospace;
+        font-size: 0.875rem;
+        color: #a3a3a3;
+      }
+
+      .placeholder {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 400px;
+        background: #171717;
+        border: 1px dashed #404040;
+        border-radius: 8px;
+        color: #737373;
+        font-size: 1rem;
+      }
+
+      .error {
+        color: #ef4444;
+        font-size: 0.8125rem;
+        font-family: 'SF Mono', 'Fira Code', monospace;
+      }
+
+      label {
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: #a3a3a3;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Variax Demo</h1>
+    </header>
+    <div class="tabs">
+      <div class="tab active" data-tab="renderer">Renderer</div>
+      <div class="tab" data-tab="extractor">Extractor</div>
+    </div>
+    <div id="renderer-panel" class="panel active">
+      <div class="editor-pane">
+        <label>VideoDocument JSON</label>
+        <textarea id="json-input" spellcheck="false"></textarea>
+        <div id="json-error" class="error"></div>
+      </div>
+      <div class="preview-pane">
+        <label>Preview</label>
+        <canvas id="preview-canvas" width="540" height="960"></canvas>
+        <div class="controls">
+          <button id="play-btn">Play</button>
+          <button id="reset-btn">Reset</button>
+          <span class="time-display" id="time-display">0.000s</span>
+        </div>
+      </div>
+    </div>
+    <div id="extractor-panel" class="panel">
+      <div class="placeholder">
+        Video-to-schema extraction — coming soon
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
