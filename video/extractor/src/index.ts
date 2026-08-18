@@ -1,13 +1,16 @@
-import type { VideoDocument } from '@variax-ai/video-schema'
+export type {
+  ExtractorOptions,
+  Frame,
+  FrameSource,
+  InferenceRequest,
+  InferFn,
+  VideoMetadata,
+} from './types'
 
-export interface ExtractorOptions {
-  source: HTMLVideoElement | string
-  width?: number
-  height?: number
-}
+export { extractDocument } from './pipeline'
+export { createBrowserFrameSource } from './frames'
+export { parseResponse } from './parse'
+export { buildPrompt } from './prompt'
+export { validateDocument } from './validate'
 
-export async function extractDocument(
-  _options: ExtractorOptions,
-): Promise<VideoDocument> {
-  throw new Error('extractDocument is not yet implemented')
-}
+export type { VideoDocument } from '@variax-ai/video-schema'
