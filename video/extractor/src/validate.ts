@@ -90,7 +90,7 @@ function requirePositiveNumber(
   context = 'document',
 ): number {
   const val = obj[field]
-  if (typeof val !== 'number' || val <= 0) {
+  if (typeof val !== 'number' || !Number.isFinite(val) || val <= 0) {
     throw new Error(`${context} ${field} must be a positive number`)
   }
   return val
@@ -102,7 +102,7 @@ function requireNonNegativeNumber(
   context = 'document',
 ): number {
   const val = obj[field]
-  if (typeof val !== 'number' || val < 0) {
+  if (typeof val !== 'number' || !Number.isFinite(val) || val < 0) {
     throw new Error(`${context} ${field} must be a non-negative number`)
   }
   return val

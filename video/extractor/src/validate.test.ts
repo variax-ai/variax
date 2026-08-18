@@ -81,8 +81,30 @@ describe('validateDocument', () => {
     expect(() => validateDocument(makeValidDoc({ fps: -1 }))).toThrow('fps')
   })
 
+  it('throws on NaN fps', () => {
+    expect(() => validateDocument(makeValidDoc({ fps: NaN }))).toThrow('fps')
+  })
+
+  it('throws on Infinity fps', () => {
+    expect(() => validateDocument(makeValidDoc({ fps: Infinity }))).toThrow('fps')
+  })
+
   it('throws on zero durationMs', () => {
     expect(() => validateDocument(makeValidDoc({ durationMs: 0 }))).toThrow('durationMs')
+  })
+
+  it('throws on NaN durationMs', () => {
+    expect(() => validateDocument(makeValidDoc({ durationMs: NaN }))).toThrow('durationMs')
+  })
+
+  it('throws on Infinity durationMs', () => {
+    expect(() => validateDocument(makeValidDoc({ durationMs: Infinity }))).toThrow('durationMs')
+  })
+
+  it('throws on NaN scene startMs', () => {
+    expect(() => validateDocument(makeValidDoc({
+      scenes: [{ id: 's', startMs: NaN, endMs: 5000, layers: [] }],
+    }))).toThrow('startMs')
   })
 
   it('throws on empty scenes', () => {

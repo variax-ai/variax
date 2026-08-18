@@ -24,7 +24,8 @@ function isFrameSource(source: unknown): source is FrameSource {
 }
 
 function computeTimestamps(durationMs: number, count: number): number[] {
-  if (count <= 1) return [0]
+  if (count <= 0) return []
+  if (count === 1) return [0]
   const step = durationMs / count
   const timestamps: number[] = []
   for (let i = 0; i < count; i++) {
@@ -54,6 +55,9 @@ export async function extractDocument(
     const height = options.height ?? meta.height
     const fps = options.fps ?? meta.fps ?? DEFAULT_FPS
     const durationMs = meta.durationMs
+    if (!Number.isFinite(durationMs) || durationMs <= 0) {
+      throw new Error('Source video must have a finite positive duration')
+    }
 
     const sampleCount = Math.min(
       options.sampleCount ?? Math.max(1, Math.ceil(durationMs / 1000)),

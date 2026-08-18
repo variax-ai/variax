@@ -44,9 +44,10 @@ function waitForReady(video: HTMLVideoElement): Promise<void> {
 }
 
 function seekTo(video: HTMLVideoElement, timeMs: number): Promise<void> {
-  return new Promise((resolve) => {
-    video.currentTime = timeMs / 1000
+  return new Promise((resolve, reject) => {
     video.addEventListener('seeked', () => resolve(), { once: true })
+    video.addEventListener('error', () => reject(video.error), { once: true })
+    video.currentTime = timeMs / 1000
   })
 }
 
