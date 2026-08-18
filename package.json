@@ -11,7 +11,13 @@
     "build": "npm run build -w @variax-ai/video-schema && npm run build -w @variax-ai/video-renderer && npm run build -w @variax-ai/video-extractor",
     "test": "npm test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
-    "generate": "npm run generate -w @variax-ai/video-schema"
+    "generate": "npm run generate -w @variax-ai/video-schema",
+    "changeset": "changeset",
+    "version-packages": "changeset version",
+    "publish-packages": "changeset publish"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.29.8"
   },
   "license": "MIT"
 }

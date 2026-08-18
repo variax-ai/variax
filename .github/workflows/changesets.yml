@@ -1,0 +1,82 @@
+# Release pipeline: Changesets + npm Trusted Publishing (OIDC) only — no NPM_TOKEN.
+# Trusted publisher on npmjs.com must list workflow filename: changesets.yml
+#
+# Requirements: npm CLI >= 11.5.1, Node >= 22.14 (see https://docs.npmjs.com/trusted-publishers/)
+
+name: Changesets
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.changeset/**'
+      - '.github/workflows/changesets.yml'
+      - 'video/**'
+      - 'package.json'
+      - 'package-lock.json'
+
+permissions:
+  id-token: write
+  contents: write
+  pull-requests: write
+
+jobs:
+  changesets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Install go-jsonschema
+        run: go install github.com/atombender/go-jsonschema@latest
+
+      # OIDC trusted publishing requires npm >= 11.5.1
+      - name: Use npm CLI compatible with OIDC publish
+        run: |
+          curl -fsSL https://registry.npmjs.org/npm/-/npm-11.5.1.tgz | tar xz -C /tmp
+          node /tmp/package/bin/npm-cli.js install -g npm@^11.5.1
+          rm -rf /tmp/package
+          npm --version
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --- Same gates as ci.yml ---
+      - name: Build packages
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Verify generated types are up to date
+        run: make check
+
+      # --- Changesets: version PR and/or publish ---
+      - name: Create Version Packages PR / publish
+        uses: changesets/action@v1
+        with:
+          version: npm run version-packages
+          commit: 'ci: release packages'
+          title: 'ci: release packages'
+          publish: npm run publish-packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_CONFIG_PROVENANCE: 'true'

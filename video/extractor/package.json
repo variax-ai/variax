@@ -1,6 +1,6 @@
 {
   "name": "@variax-ai/video-extractor",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Video to VideoDocument schema inference (extractor)",
   "type": "module",
   "main": "dist/index.cjs",
@@ -20,7 +20,7 @@
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@variax-ai/video-schema": "0.1.0"
+    "@variax-ai/video-schema": "0.0.1"
   },
   "devDependencies": {
     "tsup": "^8.0.0",
