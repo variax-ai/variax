@@ -7,6 +7,7 @@ import type { Layer } from '@variax-ai/video-schema'
 export type {
   FrameDrawer,
   RendererOptions,
+  RendererConstraints,
   ComponentDrawer,
   ComponentProps,
   DataVizDrawer,
@@ -18,11 +19,11 @@ export function createDocumentDrawer(
   doc: VideoDocument,
   options: RendererOptions,
 ): FrameDrawer {
-  const fonts: Record<string, { family: string; weight: number }> = {}
+  const fonts: RenderContext['fonts'] = {}
   if (doc.assets) {
     for (const [id, asset] of Object.entries(doc.assets)) {
       if (asset.type === 'font') {
-        fonts[id] = { family: asset.family, weight: asset.weight ?? 400 }
+        fonts[id] = { family: asset.family, weight: asset.weight ?? 400, fallback: asset.fallback }
       }
     }
   }

@@ -12,6 +12,7 @@ import { drawCaptionSequenceLayer } from './captionSequence'
 import { drawCompositeMaskLayer } from './compositeMask'
 import { drawDataVizLayer } from './dataViz'
 import { drawStatBeatLayer } from './statBeat'
+import { drawTrailLayer } from './trail'
 
 export function drawLayer(
   ctx: CanvasRenderingContext2D,
@@ -62,6 +63,9 @@ export function drawLayer(
       break
     case 'statBeat':
       drawStatBeatLayer(ctx, layer, tMs, rctx)
+      break
+    case 'trail':
+      drawTrailLayer(ctx, layer, tMs, rctx)
       break
   }
 

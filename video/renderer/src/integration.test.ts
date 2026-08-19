@@ -291,3 +291,116 @@ describe('animation integration', () => {
     expect(rotates[0].args[0]).toBeCloseTo((180 * Math.PI) / 180)
   })
 })
+
+describe('trail layer rendering', () => {
+  it('renders a trail through the public API', () => {
+    const doc = makeDoc({
+      scenes: [
+        {
+          id: 's',
+          startMs: 0,
+          endMs: 2000,
+          layers: [
+            {
+              type: 'trail',
+              source: { x: { keyframes: [{ t: 0, value: 0 }, { t: 2000, value: 2000 }] }, y: 500 },
+              windowMs: 400,
+              samples: 4,
+              radius: 60,
+              falloff: 0.5,
+              fill: '#ffffff',
+            },
+          ],
+        },
+      ],
+    } as never)
+
+    const ctx = createStubCtx()
+    createDocumentDrawer(doc, { vars: {}, images: {} })(ctx, 1000)
+
+    expect(getCalls(ctx, 'arc')).toHaveLength(4)
+    expect(getCalls(ctx, 'fill')).toHaveLength(1)
+  })
+
+  it('clips a masked image re-draw to a trail', () => {
+    const image = { width: 400, height: 400 } as unknown as CanvasImageSource
+    const offscreens: number[][] = []
+    const doc = makeDoc({
+      scenes: [
+        {
+          id: 's',
+          startMs: 0,
+          endMs: 2000,
+          layers: [
+            {
+              type: 'compositeMask',
+              source: {
+                type: 'image',
+                asset: 'photo',
+                frame: { x: 0, y: 0, w: 400, h: 400 },
+                effects: [{ type: 'downscaleBlur', radius: 28, shrink: 20 }],
+              },
+              mask: {
+                type: 'trail',
+                source: [100, 100],
+                windowMs: 400,
+                samples: 4,
+                radius: 60,
+              },
+            },
+          ],
+        },
+      ],
+    } as never)
+
+    const ctx = createStubCtx()
+    createDocumentDrawer(doc, {
+      vars: {},
+      images: { photo: image },
+      createCanvas: (width, height) => {
+        offscreens.push([width, height])
+        return { width, height, getContext: () => createStubCtx() } as unknown as HTMLCanvasElement
+      },
+    })(ctx, 1000)
+
+    // Mask canvas, source canvas, then the source image layer's own downscale
+    // buffer — proof the masked re-draw goes through the image pipeline.
+    expect(offscreens).toEqual([[1920, 1080], [1920, 1080], [20, 20]])
+    expect(getCalls(ctx, 'drawImage')).toHaveLength(1)
+  })
+})
+
+describe('renderer constraints', () => {
+  const doc = makeDoc({
+    scenes: [
+      {
+        id: 's',
+        startMs: 0,
+        endMs: 2000,
+        layers: [{ type: 'image', asset: 'photo', frame: { x: 0, y: 0, w: 400, h: 400 } }],
+      },
+    ],
+  } as never)
+  const image = { width: 400, height: 400 } as unknown as CanvasImageSource
+
+  it('leaves rendering alone when no constraints are given', () => {
+    const ctx = createStubCtx()
+    createDocumentDrawer(doc, { vars: {}, images: { photo: image } })(ctx, 500)
+    expect(getCalls(ctx, 'drawImage')[0].args.slice(1)).toEqual([0, 0, 400, 400])
+  })
+
+  it('a document declaring no blur still renders through the downscale path', () => {
+    const sizes: number[][] = []
+    const ctx = createStubCtx()
+    createDocumentDrawer(doc, {
+      vars: {},
+      images: { photo: image },
+      constraints: { minDownscaleBlurPx: 48, minDownscaleShrink: 20 },
+      createCanvas: (width, height) => {
+        sizes.push([width, height])
+        return { width, height, getContext: () => createStubCtx() } as unknown as HTMLCanvasElement
+      },
+    })(ctx, 500)
+    expect(sizes).toEqual([[20, 20]])
+  })
+})

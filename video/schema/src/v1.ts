@@ -25,6 +25,7 @@ export type Layer =
   | RepeaterLayer
   | CaptionSequenceLayer
   | CompositeMaskLayer
+  | TrailLayer
   | DataVizLayer
   | StatBeatLayer;
 /**
@@ -40,6 +41,10 @@ export type AnimatedPoint =
        */
       keyframes: [PointKeyframe, ...PointKeyframe[]];
     }
+  | {
+      x: AnimatedNumber;
+      y: AnimatedNumber;
+    }
   | Generator;
 export type EasingName =
   | ("linear" | "easeOutCubic" | "easeInOut" | "easeOutBack" | "easeInCubic")
@@ -50,6 +55,15 @@ export type EasingName =
        */
       bezier: [number, number, number, number];
     };
+export type AnimatedNumber =
+  | number
+  | {
+      /**
+       * @minItems 1
+       */
+      keyframes: [NumberKeyframe, ...NumberKeyframe[]];
+    }
+  | Generator;
 export type AnimatedScale =
   | number
   | Point
@@ -64,15 +78,6 @@ export type AnimatedScale =
        * @minItems 1
        */
       keyframes: [PointKeyframe, ...PointKeyframe[]];
-    }
-  | Generator;
-export type AnimatedNumber =
-  | number
-  | {
-      /**
-       * @minItems 1
-       */
-      keyframes: [NumberKeyframe, ...NumberKeyframe[]];
     }
   | Generator;
 export type Effect = GaussianBlurEffect | DropShadowEffect | DownscaleBlurEffect;
@@ -114,6 +119,10 @@ export interface ImageAsset {
 export interface FontAsset {
   type: "font";
   family: string;
+  /**
+   * Additional families tried after `family`, in order, forming the CSS font stack.
+   */
+  fallback?: string[];
   weight?: number;
   src: string;
 }
@@ -169,19 +178,22 @@ export interface PointKeyframe {
   value: Point;
   easing?: EasingName;
 }
+export interface NumberKeyframe {
+  t: number;
+  value: number;
+  easing?: EasingName;
+}
 export interface Generator {
   generator: {
     fn: "sine" | "sineStrokes" | "sineOscillation" | "pulse" | "countUp";
+    /**
+     * Generator parameters. Every generator additionally accepts `startMs`, which shifts its time origin: the generator is evaluated at `tMs - startMs`. Defaults to 0 (absolute clip time).
+     */
     params?: {
       [k: string]: unknown;
     };
     id?: string;
   };
-}
-export interface NumberKeyframe {
-  t: number;
-  value: number;
-  easing?: EasingName;
 }
 export interface GaussianBlurEffect {
   type: "gaussianBlur";
@@ -309,11 +321,51 @@ export interface TransitionConfig {
   risePx?: number;
   durationMs?: number;
 }
+/**
+ * Re-draws `source` through a different effect pipeline, clipped to the alpha of `mask`. `maskEffect` applies to the string form of `source` only; when `source` is a Layer, that layer's own `effects` are the pipeline.
+ */
 export interface CompositeMaskLayer {
   type: "compositeMask";
-  source: string;
+  /**
+   * Either an images-registry key (drawn full-canvas) or a Layer, which is drawn through the normal layer pipeline and so honours `frame` and `downscaleBlur`.
+   */
+  source: string | Layer;
   maskEffect?: Effect;
   mask: Layer;
+  transform?: Transform;
+  effects?: Effect[];
+  startMs?: number;
+  endMs?: number;
+  persist?: boolean;
+}
+/**
+ * Motion history: samples `source` at past times and unions a circle per sample, radius shrinking with age. Emits vector geometry only (no imagery), which is what makes it usable as a compositeMask mask. `source` is the moving point whose path is sampled — it must be declarative so the renderer can re-evaluate it at past times, and is interpreted in absolute document coordinates. `radius` is the radius of the freshest sample. `stroke` draws a polyline through the sample centres with round caps and joins. Samples older than the layer's own `startMs` are dropped.
+ */
+export interface TrailLayer {
+  type: "trail";
+  source: AnimatedPoint;
+  /**
+   * How far back the trail reaches. Sample i sits at `tMs - i * windowMs / samples`.
+   */
+  windowMs: number;
+  /**
+   * Number of samples in the age schedule.
+   */
+  samples: number;
+  /**
+   * Draw only the N freshest samples, keeping the age schedule computed over `samples`. Defaults to `samples`.
+   */
+  take?: number;
+  radius: AnimatedNumber;
+  /**
+   * Fraction of the radius shed across the full window: sample i has radius `radius * (1 - falloff * i / samples)`. Defaults to 0.
+   */
+  falloff?: number;
+  /**
+   * Fills the union of circles. Defaults to #ffffff when no `stroke` is given.
+   */
+  fill?: string;
+  stroke?: Stroke;
   transform?: Transform;
   effects?: Effect[];
   startMs?: number;

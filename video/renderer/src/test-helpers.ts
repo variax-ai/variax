@@ -47,13 +47,14 @@ export function createStubCtx(): CanvasRenderingContext2D & { calls: Call[] } {
   return new Proxy({ calls } as any, handler)
 }
 
-export function createTestRctx(overrides?: Partial<RendererOptions> & { tokens?: Record<string, string>; fonts?: Record<string, { family: string; weight: number }> }): RenderContext {
+export function createTestRctx(overrides?: Partial<RendererOptions> & { tokens?: Record<string, string>; fonts?: RenderContext['fonts'] }): RenderContext {
   const options: RendererOptions = {
     vars: overrides?.vars ?? {},
     images: overrides?.images ?? {},
     components: overrides?.components,
     dataVizRenderers: overrides?.dataVizRenderers,
     createCanvas: overrides?.createCanvas,
+    constraints: overrides?.constraints,
   }
   const rctx: RenderContext = {
     width: 1920,

@@ -60,5 +60,9 @@ export function evaluateGenerator(
 ): number {
   const fn = registry[gen.fn]
   if (!fn) return 0
-  return fn(tMs, gen.params ?? {})
+  const params = gen.params ?? {}
+  // `startMs` shifts every generator's time origin, so a document can phase a
+  // curve to a scene or layer without the renderer growing per-generator
+  // time-base rules.
+  return fn(tMs - num(params.startMs, 0), params)
 }

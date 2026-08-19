@@ -3,6 +3,36 @@ import type { RenderContext } from './types'
 import { resolveString } from './resolve'
 import { evaluateGenerator } from './generators'
 
+/** CSS generic families, which are keywords and must not be quoted. */
+const GENERIC_FAMILIES = new Set([
+  'serif',
+  'sans-serif',
+  'monospace',
+  'cursive',
+  'fantasy',
+  'system-ui',
+  'ui-serif',
+  'ui-sans-serif',
+  'ui-monospace',
+  'ui-rounded',
+  'math',
+  'emoji',
+  'fangsong',
+])
+
+/**
+ * Builds the CSS font stack from a family plus its fallbacks. A generic family
+ * always terminates the stack, so a glyph missing from every named face still
+ * has somewhere to land.
+ */
+function buildFamilyStack(family: string, fallback: string[] | undefined): string {
+  const names = [family, ...(fallback ?? [])].filter(name => name.length > 0)
+  if (names.length === 0 || !GENERIC_FAMILIES.has(names[names.length - 1])) {
+    names.push('sans-serif')
+  }
+  return names.map(name => (GENERIC_FAMILIES.has(name) ? name : `'${name}'`)).join(', ')
+}
+
 export function buildFontString(font: Font | undefined, rctx: RenderContext): string {
   if (!font) return '400 48px sans-serif'
   const weight = font.weight ?? 400
@@ -10,7 +40,7 @@ export function buildFontString(font: Font | undefined, rctx: RenderContext): st
   if (font.asset) {
     const asset = rctx.fonts[font.asset]
     if (asset) {
-      family = `'${asset.family}', sans-serif`
+      family = buildFamilyStack(asset.family, asset.fallback)
       if (!font.weight && asset.weight) {
         return `${asset.weight} ${font.size}px ${family}`
       }

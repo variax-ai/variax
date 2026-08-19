@@ -29,6 +29,36 @@ describe('buildFontString', () => {
     const result = buildFontString({ size: 48, asset: 'heading' }, rctx)
     expect(result).toBe("600 48px 'Inter', sans-serif")
   })
+
+  it('emits the full fallback stack in order', () => {
+    const rctx = createTestRctx({
+      fonts: { heading: { family: 'Lilita One', weight: 400, fallback: ['Baloo 2', 'system-ui'] } },
+    })
+    const result = buildFontString({ size: 96, asset: 'heading' }, rctx)
+    expect(result).toBe("400 96px 'Lilita One', 'Baloo 2', system-ui")
+  })
+
+  it('terminates a stack of named families with a generic', () => {
+    const rctx = createTestRctx({
+      fonts: { heading: { family: 'Lilita One', weight: 400, fallback: ['Baloo 2'] } },
+    })
+    const result = buildFontString({ size: 96, asset: 'heading' }, rctx)
+    expect(result).toBe("400 96px 'Lilita One', 'Baloo 2', sans-serif")
+  })
+
+  it('keeps explicit weight precedence alongside a fallback stack', () => {
+    const rctx = createTestRctx({
+      fonts: { heading: { family: 'Inter', weight: 600, fallback: ['monospace'] } },
+    })
+    expect(buildFontString({ size: 48, weight: 700, asset: 'heading' }, rctx)).toBe(
+      "700 48px 'Inter', monospace",
+    )
+  })
+
+  it('is unchanged for an asset with an empty fallback list', () => {
+    const rctx = createTestRctx({ fonts: { heading: { family: 'Inter', weight: 600, fallback: [] } } })
+    expect(buildFontString({ size: 48, asset: 'heading' }, rctx)).toBe("600 48px 'Inter', sans-serif")
+  })
 })
 
 describe('resolveContent', () => {
