@@ -1,6 +1,6 @@
 {
   "name": "@variax-ai/video-schema",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "TypeScript type definitions for the Variax video schema",
   "type": "module",
   "main": "dist/v1.js",
@@ -11,7 +11,9 @@
       "import": "./dist/v1.js"
     }
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "generate": "json2ts json/v1.json > src/v1.ts",
     "build": "tsc",
