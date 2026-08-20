@@ -302,6 +302,35 @@ func (j *DataVizLayer) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+// A named value a document can reuse. References to it must be to the same
+// expression, not a copy — a path sampled by several layers has to stay in step
+// with the thing casting it.
+type Def interface{}
+
+// A reference to an entry in the document's `defs`, written `$def:name`. Resolved
+// once when the document is loaded, so every reference to one def shares a single
+// value rather than a copy of it — which is the point: JSON has no references, and
+// anything reused is otherwise written out verbatim on the wire.
+type DefRef string
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *DefRef) UnmarshalJSON(value []byte) error {
+	type Plain DefRef
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	if matched, _ := regexp.MatchString(`^\$def:[A-Za-z0-9_.-]+$`, string(plain)); !matched {
+		return fmt.Errorf("field %s pattern match: must match %s", "", `^\$def:[A-Za-z0-9_.-]+$`)
+	}
+	*j = DefRef(plain)
+	return nil
+}
+
+// Document-level definitions, referenced as `$def:name`. A def may reference
+// another; a cycle is an error.
+type Defs map[string]Def
+
 type DownscaleBlurEffect struct {
 	// Radius corresponds to the JSON schema field "radius".
 	Radius AnimatedNumber `json:"radius" yaml:"radius" mapstructure:"radius"`
@@ -1668,6 +1697,41 @@ func (j *TransitionConfig) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+// Draws a layer, or a whole layer array, defined once in `defs`. Substitution
+// only: the definition is spliced in where the `use` stands, keeping the order of
+// the layers around it.
+type UseLayer struct {
+	// The name of a def, with or without the `$def:` prefix.
+	Def string `json:"def" yaml:"def" mapstructure:"def"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `json:"type" yaml:"type" mapstructure:"type"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *UseLayer) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["def"]; raw != nil && !ok {
+		return fmt.Errorf("field def in UseLayer: required")
+	}
+	if _, ok := raw["type"]; raw != nil && !ok {
+		return fmt.Errorf("field type in UseLayer: required")
+	}
+	type Plain UseLayer
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	if plain.Type != "use" {
+		return fmt.Errorf("field %s: must be equal to %s", "type", "use")
+	}
+	*j = UseLayer(plain)
+	return nil
+}
+
 // A declarative JSON format for motion-graphics videos, inspired by the Lottie
 // schema.
 type V1Json struct {
@@ -1676,6 +1740,9 @@ type V1Json struct {
 
 	// Assets corresponds to the JSON schema field "assets".
 	Assets Assets `json:"assets,omitempty,omitzero" yaml:"assets,omitempty" mapstructure:"assets,omitempty"`
+
+	// Defs corresponds to the JSON schema field "defs".
+	Defs Defs `json:"defs,omitempty,omitzero" yaml:"defs,omitempty" mapstructure:"defs,omitempty"`
 
 	// DurationMs corresponds to the JSON schema field "durationMs".
 	DurationMs float64 `json:"durationMs" yaml:"durationMs" mapstructure:"durationMs"`

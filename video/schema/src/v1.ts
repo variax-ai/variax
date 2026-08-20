@@ -6,34 +6,12 @@
  */
 
 export type Asset = ImageAsset | FontAsset;
-export type Background =
-  | string
-  | {
-      type: "linearGradient" | "radialGradient";
-      /**
-       * @minItems 2
-       */
-      stops: [string, string, ...string[]];
-      angle?: number;
-    };
-export type Layer =
-  | ShapeLayer
-  | TextLayer
-  | ImageLayer
-  | GroupLayer
-  | RefLayer
-  | RepeaterLayer
-  | CaptionSequenceLayer
-  | CompositeMaskLayer
-  | TrailLayer
-  | DataVizLayer
-  | StatBeatLayer;
 /**
- * @minItems 2
- * @maxItems 2
+ * A named value a document can reuse. References to it must be to the same expression, not a copy — a path sampled by several layers has to stay in step with the thing casting it.
  */
-export type Point = [number, number];
+export type Def = AnimatedPoint | AnimatedNumber | AnimatedScale | Layer | Layer[];
 export type AnimatedPoint =
+  | DefRef
   | Point
   | {
       /**
@@ -46,6 +24,15 @@ export type AnimatedPoint =
       y: AnimatedNumber;
     }
   | Generator;
+/**
+ * A reference to an entry in the document's `defs`, written `$def:name`. Resolved once when the document is loaded, so every reference to one def shares a single value rather than a copy of it — which is the point: JSON has no references, and anything reused is otherwise written out verbatim on the wire.
+ */
+export type DefRef = string;
+/**
+ * @minItems 2
+ * @maxItems 2
+ */
+export type Point = [number, number];
 export type EasingName =
   | ("linear" | "easeOutCubic" | "easeInOut" | "easeOutBack" | "easeInCubic")
   | {
@@ -56,6 +43,7 @@ export type EasingName =
       bezier: [number, number, number, number];
     };
 export type AnimatedNumber =
+  | DefRef
   | number
   | {
       /**
@@ -65,6 +53,7 @@ export type AnimatedNumber =
     }
   | Generator;
 export type AnimatedScale =
+  | DefRef
   | number
   | Point
   | {
@@ -80,6 +69,19 @@ export type AnimatedScale =
       keyframes: [PointKeyframe, ...PointKeyframe[]];
     }
   | Generator;
+export type Layer =
+  | UseLayer
+  | ShapeLayer
+  | TextLayer
+  | ImageLayer
+  | GroupLayer
+  | RefLayer
+  | RepeaterLayer
+  | CaptionSequenceLayer
+  | CompositeMaskLayer
+  | TrailLayer
+  | DataVizLayer
+  | StatBeatLayer;
 export type Effect = GaussianBlurEffect | DropShadowEffect | DownscaleBlurEffect;
 /**
  * A predicate over `vars` deciding whether a layer is drawn at all — the one place document structure, rather than a value, may depend on a runtime fact. A layer that fails its condition is skipped entirely, and nothing moves to fill the gap: layout stays the author's job, so a document with an optional layer positions the layers around it for both cases. The string form names a var, with or without the `$var:` prefix, and holds when the value is truthy: `false`, `0`, `NaN`, the empty string, the strings `"false"` and `"0"`, and an unset var are all false, everything else true. The object form compares instead, as strings, so `1` and `"1"` match — an unset var never matches.
@@ -108,6 +110,16 @@ export type Condition =
  * A single JSON value a var can hold. Spelled as an `anyOf` of one-type schemas rather than a `type` array, so a validator running in strict mode compiles it without configuration.
  */
 export type Scalar = string | number | boolean;
+export type Background =
+  | string
+  | {
+      type: "linearGradient" | "radialGradient";
+      /**
+       * @minItems 2
+       */
+      stops: [string, string, ...string[]];
+      angle?: number;
+    };
 
 /**
  * A declarative JSON format for motion-graphics videos, inspired by the Lottie schema.
@@ -122,6 +134,7 @@ export interface VideoDocument {
   vars?: Vars;
   assets?: Assets;
   tokens?: Tokens;
+  defs?: Defs;
   /**
    * @minItems 1
    */
@@ -168,12 +181,43 @@ export interface FontAsset {
 export interface Tokens {
   [k: string]: string;
 }
-export interface Scene {
-  id: string;
-  startMs: number;
-  endMs: number;
-  background?: Background;
-  layers: Layer[];
+/**
+ * Document-level definitions, referenced as `$def:name`. A def may reference another; a cycle is an error.
+ */
+export interface Defs {
+  [k: string]: Def;
+}
+export interface PointKeyframe {
+  t: number;
+  value: Point;
+  easing?: EasingName;
+}
+export interface NumberKeyframe {
+  t: number;
+  value: number;
+  easing?: EasingName;
+}
+export interface Generator {
+  generator: {
+    fn: "sine" | "sineStrokes" | "sineOscillation" | "pulse" | "countUp";
+    /**
+     * Generator parameters. Every generator additionally accepts `startMs`, which shifts its time origin: the generator is evaluated at `tMs - startMs`. Defaults to 0 (absolute clip time).
+     */
+    params?: {
+      [k: string]: unknown;
+    };
+    id?: string;
+  };
+}
+/**
+ * Draws a layer, or a whole layer array, defined once in `defs`. Substitution only: the definition is spliced in where the `use` stands, keeping the order of the layers around it.
+ */
+export interface UseLayer {
+  type: "use";
+  /**
+   * The name of a def, with or without the `$def:` prefix.
+   */
+  def: string;
 }
 export interface ShapeLayer {
   type: "shape";
@@ -212,28 +256,6 @@ export interface Transform {
   rotation?: AnimatedNumber;
   opacity?: AnimatedNumber;
   anchor?: Point;
-}
-export interface PointKeyframe {
-  t: number;
-  value: Point;
-  easing?: EasingName;
-}
-export interface NumberKeyframe {
-  t: number;
-  value: number;
-  easing?: EasingName;
-}
-export interface Generator {
-  generator: {
-    fn: "sine" | "sineStrokes" | "sineOscillation" | "pulse" | "countUp";
-    /**
-     * Generator parameters. Every generator additionally accepts `startMs`, which shifts its time origin: the generator is evaluated at `tMs - startMs`. Defaults to 0 (absolute clip time).
-     */
-    params?: {
-      [k: string]: unknown;
-    };
-    id?: string;
-  };
 }
 export interface GaussianBlurEffect {
   type: "gaussianBlur";
@@ -470,4 +492,11 @@ export interface StatBeatEntry {
   position: Point;
   offsetMs?: number;
   countUpMs?: number;
+}
+export interface Scene {
+  id: string;
+  startMs: number;
+  endMs: number;
+  background?: Background;
+  layers: Layer[];
 }
