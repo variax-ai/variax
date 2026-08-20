@@ -1,7 +1,7 @@
 {
   "name": "@variax-ai/video-schema",
   "version": "0.0.2",
-  "description": "TypeScript type definitions for the Variax video schema",
+  "description": "Canonical JSON Schema for the Variax video format, with generated TypeScript types",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/variax-ai/variax.git",
@@ -18,15 +18,19 @@
     ".": {
       "types": "./dist/v1.d.ts",
       "import": "./dist/v1.js"
-    }
+    },
+    "./json/v1.json": "./json/v1.json",
+    "./package.json": "./package.json"
   },
   "files": [
-    "dist"
+    "dist",
+    "json"
   ],
   "scripts": {
     "generate": "json2ts json/v1.json > src/v1.ts",
     "build": "tsc",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/*.test.mjs"
   },
   "devDependencies": {
     "json-schema-to-typescript": "^15.0.0",
