@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import type { AnimatedPoint } from '@variax-ai/video-schema'
 import { evaluateNumber, evaluatePoint, evaluateScale } from './animate'
 
 describe('evaluateNumber', () => {
@@ -93,5 +94,45 @@ describe('evaluateScale', () => {
     const result = evaluateScale(animated, 500)
     expect(result[0]).toBeCloseTo(1.5)
     expect(result[1]).toBeCloseTo(1.5)
+  })
+})
+
+describe('evaluatePoint per-axis form', () => {
+  it('drives each axis from its own track', () => {
+    const value = {
+      x: { generator: { fn: 'sineOscillation', params: { from: 0, to: 100, periodMs: 1000 } } },
+      y: { keyframes: [{ t: 0, value: 0 }, { t: 1000, value: 500 }] },
+    } as unknown as AnimatedPoint
+
+    const [x0, y0] = evaluatePoint(value, 0)
+    expect(x0).toBeCloseTo(0)
+    expect(y0).toBeCloseTo(0)
+
+    const [x1, y1] = evaluatePoint(value, 250)
+    expect(x1).toBeCloseTo(100)
+    expect(y1).toBeCloseTo(125)
+  })
+
+  it('accepts a bare number on an axis', () => {
+    const value = { x: 42, y: 7 } as unknown as AnimatedPoint
+    expect(evaluatePoint(value, 500)).toEqual([42, 7])
+  })
+
+  it('leaves the existing forms untouched', () => {
+    const bare = [10, 20] as unknown as AnimatedPoint
+    expect(evaluatePoint(bare, 500)).toEqual([10, 20])
+
+    const kfs = {
+      keyframes: [
+        { t: 0, value: [0, 0] },
+        { t: 1000, value: [100, 200] },
+      ],
+    } as unknown as AnimatedPoint
+    expect(evaluatePoint(kfs, 500)).toEqual([50, 100])
+
+    const gen = { generator: { fn: 'sine', params: { from: 0, to: 10, periodMs: 1000 } } } as unknown as AnimatedPoint
+    const [gx, gy] = evaluatePoint(gen, 250)
+    expect(gx).toBeCloseTo(10)
+    expect(gx).toBe(gy)
   })
 })

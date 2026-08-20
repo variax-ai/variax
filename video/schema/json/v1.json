@@ -112,7 +112,10 @@
               "type": "string",
               "enum": ["sine", "sineStrokes", "sineOscillation", "pulse", "countUp"]
             },
-            "params": { "type": "object" },
+            "params": {
+              "type": "object",
+              "description": "Generator parameters. Every generator additionally accepts `startMs`, which shifts its time origin: the generator is evaluated at `tMs - startMs`. Defaults to 0 (absolute clip time)."
+            },
             "id": { "type": "string" }
           },
           "additionalProperties": false
@@ -152,6 +155,16 @@
               "items": { "$ref": "#/definitions/PointKeyframe" },
               "minItems": 1
             }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "description": "Per-axis animation: x and y each carry their own keyframes or generator.",
+          "required": ["x", "y"],
+          "properties": {
+            "x": { "$ref": "#/definitions/AnimatedNumber" },
+            "y": { "$ref": "#/definitions/AnimatedNumber" }
           },
           "additionalProperties": false
         },
@@ -496,12 +509,59 @@
       "additionalProperties": false
     },
 
+    "TrailLayer": {
+      "type": "object",
+      "description": "Motion history: samples `source` at past times and unions a circle per sample, radius shrinking with age. Emits vector geometry only (no imagery), which is what makes it usable as a compositeMask mask. `source` is the moving point whose path is sampled — it must be declarative so the renderer can re-evaluate it at past times, and is interpreted in absolute document coordinates. `radius` is the radius of the freshest sample. `stroke` draws a polyline through the sample centres with round caps and joins. Samples older than the layer's own `startMs` are dropped.",
+      "required": ["type", "source", "windowMs", "samples", "radius"],
+      "properties": {
+        "type": { "type": "string", "const": "trail" },
+        "source": { "$ref": "#/definitions/AnimatedPoint" },
+        "windowMs": {
+          "description": "How far back the trail reaches. Sample i sits at `tMs - i * windowMs / samples`.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "samples": {
+          "description": "Number of samples in the age schedule.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "take": {
+          "description": "Draw only the N freshest samples, keeping the age schedule computed over `samples`. Defaults to `samples`.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "radius": { "$ref": "#/definitions/AnimatedNumber" },
+        "falloff": {
+          "description": "Fraction of the radius shed across the full window: sample i has radius `radius * (1 - falloff * i / samples)`. Defaults to 0.",
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "fill": {
+          "description": "Fills the union of circles. Defaults to #ffffff when no `stroke` is given.",
+          "type": "string"
+        },
+        "stroke": { "$ref": "#/definitions/Stroke" },
+        "transform": { "$ref": "#/definitions/Transform" },
+        "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
+        "startMs": { "type": "number", "minimum": 0 },
+        "endMs": { "type": "number", "minimum": 0 },
+        "persist": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+
     "CompositeMaskLayer": {
       "type": "object",
+      "description": "Re-draws `source` through a different effect pipeline, clipped to the alpha of `mask`. `maskEffect` applies to the string form of `source` only; when `source` is a Layer, that layer's own `effects` are the pipeline.",
       "required": ["type", "source", "mask"],
       "properties": {
         "type": { "type": "string", "const": "compositeMask" },
-        "source": { "type": "string" },
+        "source": {
+          "description": "Either an images-registry key (drawn full-canvas) or a Layer, which is drawn through the normal layer pipeline and so honours `frame` and `downscaleBlur`.",
+          "oneOf": [{ "type": "string" }, { "$ref": "#/definitions/Layer" }]
+        },
         "maskEffect": { "$ref": "#/definitions/Effect" },
         "mask": { "$ref": "#/definitions/Layer" },
         "transform": { "$ref": "#/definitions/Transform" },
@@ -576,6 +636,7 @@
         { "$ref": "#/definitions/RepeaterLayer" },
         { "$ref": "#/definitions/CaptionSequenceLayer" },
         { "$ref": "#/definitions/CompositeMaskLayer" },
+        { "$ref": "#/definitions/TrailLayer" },
         { "$ref": "#/definitions/DataVizLayer" },
         { "$ref": "#/definitions/StatBeatLayer" }
       ]
@@ -657,6 +718,11 @@
       "properties": {
         "type": { "type": "string", "const": "font" },
         "family": { "type": "string" },
+        "fallback": {
+          "description": "Additional families tried after `family`, in order, forming the CSS font stack.",
+          "type": "array",
+          "items": { "type": "string" }
+        },
         "weight": { "type": "number" },
         "src": { "type": "string" }
       },

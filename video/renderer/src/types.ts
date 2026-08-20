@@ -24,12 +24,29 @@ export type DataVizDrawer = (
   animation: Record<string, unknown>,
 ) => void
 
+/**
+ * Host-supplied floors on how sharply an image may ever be rendered. There is
+ * deliberately no document-side counterpart: these clamp rather than warn, and
+ * setting `minDownscaleBlurPx` forces every `image` layer and every
+ * images-key `compositeMask` source through the downscale-blur path, even when
+ * the document declares no blur at all.
+ *
+ * The floors cover the layers the renderer draws itself. They cannot cover
+ * `components` or `dataVizRenderers`, which are host code handed the raw
+ * context — a host that registers a drawer is responsible for what it paints.
+ */
+export interface RendererConstraints {
+  minDownscaleBlurPx?: number
+  minDownscaleShrink?: number
+}
+
 export interface RendererOptions {
   vars: Record<string, string | number | boolean>
   images: Record<string, CanvasImageSource>
   components?: Record<string, ComponentDrawer>
   dataVizRenderers?: Record<string, DataVizDrawer>
   createCanvas?: (width: number, height: number) => HTMLCanvasElement | OffscreenCanvas
+  constraints?: RendererConstraints
 }
 
 export interface ResolveContext {
@@ -42,7 +59,7 @@ export interface RenderContext {
   height: number
   resolve: ResolveContext
   options: RendererOptions
-  fonts: Record<string, { family: string; weight: number }>
+  fonts: Record<string, { family: string; weight: number; stack: string }>
   drawLayer: (ctx: CanvasRenderingContext2D, layer: Layer, tMs: number) => void
   sceneStartMs: number
 }

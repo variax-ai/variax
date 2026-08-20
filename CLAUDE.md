@@ -75,7 +75,8 @@ VideoDocument
 | `ref` | reusable component reference (`#id`) |
 | `repeater` | N copies with phaseOffsetMs |
 | `captionSequence` | timed text entries with entrance/exit transitions |
-| `compositeMask` | re-draw source through different effect pipeline, clipped to mask |
+| `compositeMask` | re-draw source (image or layer) through different effect pipeline, clipped to mask |
+| `trail` | motion history: circles sampled along an animated point's own past path |
 | `dataViz` | data-driven visualization (tree, etc.) |
 | `statBeat` | animated counter(s) with labels |
 

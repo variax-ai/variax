@@ -1,5 +1,6 @@
 import type { RenderContext, RendererOptions } from './types'
 import type { Layer } from '@variax-ai/video-schema'
+import { buildFamilyStack } from './text'
 
 type Call = { method: string; args: unknown[] }
 
@@ -47,13 +48,14 @@ export function createStubCtx(): CanvasRenderingContext2D & { calls: Call[] } {
   return new Proxy({ calls } as any, handler)
 }
 
-export function createTestRctx(overrides?: Partial<RendererOptions> & { tokens?: Record<string, string>; fonts?: Record<string, { family: string; weight: number }> }): RenderContext {
+export function createTestRctx(overrides?: Partial<RendererOptions> & { tokens?: Record<string, string>; fonts?: Record<string, { family: string; weight: number; fallback?: string[] }> }): RenderContext {
   const options: RendererOptions = {
     vars: overrides?.vars ?? {},
     images: overrides?.images ?? {},
     components: overrides?.components,
     dataVizRenderers: overrides?.dataVizRenderers,
     createCanvas: overrides?.createCanvas,
+    constraints: overrides?.constraints,
   }
   const rctx: RenderContext = {
     width: 1920,
@@ -63,7 +65,12 @@ export function createTestRctx(overrides?: Partial<RendererOptions> & { tokens?:
       tokens: overrides?.tokens ?? {},
     },
     options,
-    fonts: overrides?.fonts ?? {},
+    fonts: Object.fromEntries(
+      Object.entries(overrides?.fonts ?? {}).map(([id, f]) => [
+        id,
+        { family: f.family, weight: f.weight, stack: buildFamilyStack(f.family, f.fallback) },
+      ]),
+    ),
     drawLayer: (_ctx: CanvasRenderingContext2D, _layer: Layer, _tMs: number) => {},
     sceneStartMs: 0,
   }

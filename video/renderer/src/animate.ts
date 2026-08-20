@@ -17,6 +17,10 @@ function isGenerator(v: unknown): v is { generator: { fn: string; params?: Recor
   return typeof v === 'object' && v !== null && 'generator' in v
 }
 
+function isAxisObject(v: unknown): v is { x: AnimatedNumber; y: AnimatedNumber } {
+  return typeof v === 'object' && v !== null && 'x' in v && 'y' in v
+}
+
 function lerpNumber(a: number, b: number, t: number): number {
   return a + (b - a) * t
 }
@@ -72,6 +76,9 @@ export function evaluatePoint(value: AnimatedPoint, tMs: number): Point {
   }
   if (isKeyframeObject(value)) {
     return interpolatePointKeyframes(value.keyframes as PointKeyframe[], tMs)
+  }
+  if (isAxisObject(value)) {
+    return [evaluateNumber(value.x, tMs), evaluateNumber(value.y, tMs)]
   }
   return [0, 0]
 }

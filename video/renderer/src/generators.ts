@@ -35,7 +35,11 @@ const pulse: GeneratorFn = (tMs, params) => {
   const from = num(params.from, 0)
   const to = num(params.to, 1)
   const periodMs = num(params.periodMs, 1000)
-  const t = (tMs / periodMs) % 1
+  // Euclidean modulo: JS `%` keeps the dividend's sign, so a `startMs` that
+  // puts the generator before its origin would otherwise ramp backwards below
+  // `from`. The sines are already periodic for negative time; this makes the
+  // sawtooth match, and keeps the output inside [from, to).
+  const t = (((tMs / periodMs) % 1) + 1) % 1
   return from + (to - from) * t
 }
 
@@ -60,5 +64,9 @@ export function evaluateGenerator(
 ): number {
   const fn = registry[gen.fn]
   if (!fn) return 0
-  return fn(tMs, gen.params ?? {})
+  const params = gen.params ?? {}
+  // `startMs` shifts every generator's time origin, so a document can phase a
+  // curve to a scene or layer without the renderer growing per-generator
+  // time-base rules.
+  return fn(tMs - num(params.startMs, 0), params)
 }

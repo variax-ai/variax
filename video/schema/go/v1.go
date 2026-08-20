@@ -128,6 +128,9 @@ func (j *CaptionSequenceLayer) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+// Re-draws `source` through a different effect pipeline, clipped to the alpha of
+// `mask`. `maskEffect` applies to the string form of `source` only; when `source`
+// is a Layer, that layer's own `effects` are the pipeline.
 type CompositeMaskLayer struct {
 	// Effects corresponds to the JSON schema field "effects".
 	Effects []Effect `json:"effects,omitempty,omitzero" yaml:"effects,omitempty" mapstructure:"effects,omitempty"`
@@ -144,8 +147,9 @@ type CompositeMaskLayer struct {
 	// Persist corresponds to the JSON schema field "persist".
 	Persist *bool `json:"persist,omitempty,omitzero" yaml:"persist,omitempty" mapstructure:"persist,omitempty"`
 
-	// Source corresponds to the JSON schema field "source".
-	Source string `json:"source" yaml:"source" mapstructure:"source"`
+	// Either an images-registry key (drawn full-canvas) or a Layer, which is drawn
+	// through the normal layer pipeline and so honours `frame` and `downscaleBlur`.
+	Source interface{} `json:"source" yaml:"source" mapstructure:"source"`
 
 	// StartMs corresponds to the JSON schema field "startMs".
 	StartMs *float64 `json:"startMs,omitempty,omitzero" yaml:"startMs,omitempty" mapstructure:"startMs,omitempty"`
@@ -376,6 +380,9 @@ type Font struct {
 }
 
 type FontAsset struct {
+	// Additional families tried after `family`, in order, forming the CSS font stack.
+	Fallback []string `json:"fallback,omitempty,omitzero" yaml:"fallback,omitempty" mapstructure:"fallback,omitempty"`
+
 	// Family corresponds to the JSON schema field "family".
 	Family string `json:"family" yaml:"family" mapstructure:"family"`
 
@@ -525,7 +532,9 @@ type GeneratorGenerator struct {
 	// Id corresponds to the JSON schema field "id".
 	Id *string `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
 
-	// Params corresponds to the JSON schema field "params".
+	// Generator parameters. Every generator additionally accepts `startMs`, which
+	// shifts its time origin: the generator is evaluated at `tMs - startMs`. Defaults
+	// to 0 (absolute clip time).
 	Params GeneratorGeneratorParams `json:"params,omitempty,omitzero" yaml:"params,omitempty" mapstructure:"params,omitempty"`
 }
 
@@ -565,6 +574,9 @@ func (j *GeneratorGeneratorFn) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+// Generator parameters. Every generator additionally accepts `startMs`, which
+// shifts its time origin: the generator is evaluated at `tMs - startMs`. Defaults
+// to 0 (absolute clip time).
 type GeneratorGeneratorParams map[string]interface{}
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -1442,6 +1454,115 @@ func (j *TextLayer) UnmarshalJSON(value []byte) error {
 }
 
 type Tokens map[string]string
+
+// Motion history: samples `source` at past times and unions a circle per sample,
+// radius shrinking with age. Emits vector geometry only (no imagery), which is
+// what makes it usable as a compositeMask mask. `source` is the moving point whose
+// path is sampled — it must be declarative so the renderer can re-evaluate it at
+// past times, and is interpreted in absolute document coordinates. `radius` is the
+// radius of the freshest sample. `stroke` draws a polyline through the sample
+// centres with round caps and joins. Samples older than the layer's own `startMs`
+// are dropped.
+type TrailLayer struct {
+	// Effects corresponds to the JSON schema field "effects".
+	Effects []Effect `json:"effects,omitempty,omitzero" yaml:"effects,omitempty" mapstructure:"effects,omitempty"`
+
+	// EndMs corresponds to the JSON schema field "endMs".
+	EndMs *float64 `json:"endMs,omitempty,omitzero" yaml:"endMs,omitempty" mapstructure:"endMs,omitempty"`
+
+	// Fraction of the radius shed across the full window: sample i has radius `radius
+	// * (1 - falloff * i / samples)`. Defaults to 0.
+	Falloff *float64 `json:"falloff,omitempty,omitzero" yaml:"falloff,omitempty" mapstructure:"falloff,omitempty"`
+
+	// Fills the union of circles. Defaults to #ffffff when no `stroke` is given.
+	Fill *string `json:"fill,omitempty,omitzero" yaml:"fill,omitempty" mapstructure:"fill,omitempty"`
+
+	// Persist corresponds to the JSON schema field "persist".
+	Persist *bool `json:"persist,omitempty,omitzero" yaml:"persist,omitempty" mapstructure:"persist,omitempty"`
+
+	// Radius corresponds to the JSON schema field "radius".
+	Radius AnimatedNumber `json:"radius" yaml:"radius" mapstructure:"radius"`
+
+	// Number of samples in the age schedule.
+	Samples int `json:"samples" yaml:"samples" mapstructure:"samples"`
+
+	// Source corresponds to the JSON schema field "source".
+	Source AnimatedPoint `json:"source" yaml:"source" mapstructure:"source"`
+
+	// StartMs corresponds to the JSON schema field "startMs".
+	StartMs *float64 `json:"startMs,omitempty,omitzero" yaml:"startMs,omitempty" mapstructure:"startMs,omitempty"`
+
+	// Stroke corresponds to the JSON schema field "stroke".
+	Stroke *Stroke `json:"stroke,omitempty,omitzero" yaml:"stroke,omitempty" mapstructure:"stroke,omitempty"`
+
+	// Draw only the N freshest samples, keeping the age schedule computed over
+	// `samples`. Defaults to `samples`.
+	Take *int `json:"take,omitempty,omitzero" yaml:"take,omitempty" mapstructure:"take,omitempty"`
+
+	// Transform corresponds to the JSON schema field "transform".
+	Transform *Transform `json:"transform,omitempty,omitzero" yaml:"transform,omitempty" mapstructure:"transform,omitempty"`
+
+	// Type corresponds to the JSON schema field "type".
+	Type string `json:"type" yaml:"type" mapstructure:"type"`
+
+	// How far back the trail reaches. Sample i sits at `tMs - i * windowMs /
+	// samples`.
+	WindowMs float64 `json:"windowMs" yaml:"windowMs" mapstructure:"windowMs"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *TrailLayer) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["radius"]; raw != nil && !ok {
+		return fmt.Errorf("field radius in TrailLayer: required")
+	}
+	if _, ok := raw["samples"]; raw != nil && !ok {
+		return fmt.Errorf("field samples in TrailLayer: required")
+	}
+	if _, ok := raw["source"]; raw != nil && !ok {
+		return fmt.Errorf("field source in TrailLayer: required")
+	}
+	if _, ok := raw["type"]; raw != nil && !ok {
+		return fmt.Errorf("field type in TrailLayer: required")
+	}
+	if _, ok := raw["windowMs"]; raw != nil && !ok {
+		return fmt.Errorf("field windowMs in TrailLayer: required")
+	}
+	type Plain TrailLayer
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	if plain.EndMs != nil && 0 > *plain.EndMs {
+		return fmt.Errorf("field %s: must be >= %v", "endMs", 0)
+	}
+	if plain.Falloff != nil && 1 < *plain.Falloff {
+		return fmt.Errorf("field %s: must be <= %v", "falloff", 1)
+	}
+	if plain.Falloff != nil && 0 > *plain.Falloff {
+		return fmt.Errorf("field %s: must be >= %v", "falloff", 0)
+	}
+	if 1 > plain.Samples {
+		return fmt.Errorf("field %s: must be >= %v", "samples", 1)
+	}
+	if plain.StartMs != nil && 0 > *plain.StartMs {
+		return fmt.Errorf("field %s: must be >= %v", "startMs", 0)
+	}
+	if plain.Take != nil && 1 > *plain.Take {
+		return fmt.Errorf("field %s: must be >= %v", "take", 1)
+	}
+	if plain.Type != "trail" {
+		return fmt.Errorf("field %s: must be equal to %s", "type", "trail")
+	}
+	if 0 >= plain.WindowMs {
+		return fmt.Errorf("field %s: must be > %v", "windowMs", 0)
+	}
+	*j = TrailLayer(plain)
+	return nil
+}
 
 type Transform struct {
 	// Anchor corresponds to the JSON schema field "anchor".

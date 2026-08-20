@@ -1,7 +1,7 @@
 import type { CaptionSequenceLayer, CaptionEntry } from '@variax-ai/video-schema'
 import type { RenderContext } from '../types'
 import { resolveColor } from '../resolve'
-import { buildFontString, fillFittedText } from '../text'
+import { buildFontString, fillFittedText, resolveFamilyStack } from '../text'
 import { easeOutCubic, easeOutBack } from '../easing'
 
 function clamp01(t: number): number {
@@ -61,9 +61,7 @@ export function drawCaptionSequenceLayer(
 
   if (layer.shrinkToFit && layer.maxWidth && layer.font) {
     const weight = layer.font.weight ?? (rctx.fonts[layer.font.asset ?? '']?.weight ?? 400)
-    const family = layer.font.asset
-      ? `'${rctx.fonts[layer.font.asset]?.family ?? 'sans-serif'}', sans-serif`
-      : 'sans-serif'
+    const family = resolveFamilyStack(layer.font.asset, rctx)
     fillFittedText(ctx, caption.text, 0, 0, layer.maxWidth, layer.font.size, weight, family)
   } else {
     ctx.fillText(caption.text, 0, 0)

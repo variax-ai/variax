@@ -1,8 +1,11 @@
 import type { VideoDocument, Scene, Layer } from '@variax-ai/video-schema'
 
+// Must mirror the Layer union in video/schema/json/v1.json — validateLayers
+// drops anything not listed here silently, so a missing entry makes a valid
+// layer disappear with no diagnostic.
 const VALID_LAYER_TYPES = new Set([
   'shape', 'text', 'image', 'group',
-  'ref', 'repeater', 'captionSequence', 'compositeMask', 'dataViz', 'statBeat',
+  'ref', 'repeater', 'captionSequence', 'compositeMask', 'trail', 'dataViz', 'statBeat',
 ])
 
 export function validateDocument(doc: unknown): VideoDocument {
