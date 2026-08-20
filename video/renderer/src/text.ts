@@ -3,6 +3,16 @@ import type { RenderContext } from './types'
 import { resolveString } from './resolve'
 import { evaluateGenerator } from './generators'
 
+/**
+ * Escapes a family name for a quoted CSS string. An unescaped apostrophe makes
+ * the whole `ctx.font` value unparseable, and the canvas ignores an invalid
+ * font assignment silently — the text then renders in whatever face happened
+ * to be set, at the wrong size.
+ */
+function escapeFamily(name: string): string {
+  return name.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+}
+
 /** CSS generic families, which are keywords and must not be quoted. */
 const GENERIC_FAMILIES = new Set([
   'serif',
@@ -25,12 +35,24 @@ const GENERIC_FAMILIES = new Set([
  * always terminates the stack, so a glyph missing from every named face still
  * has somewhere to land.
  */
-function buildFamilyStack(family: string, fallback: string[] | undefined): string {
+export function buildFamilyStack(family: string, fallback: string[] | undefined): string {
   const names = [family, ...(fallback ?? [])].filter(name => name.length > 0)
   if (names.length === 0 || !GENERIC_FAMILIES.has(names[names.length - 1])) {
     names.push('sans-serif')
   }
-  return names.map(name => (GENERIC_FAMILIES.has(name) ? name : `'${name}'`)).join(', ')
+  return names
+    .map(name => (GENERIC_FAMILIES.has(name) ? name : `'${escapeFamily(name)}'`))
+    .join(', ')
+}
+
+/**
+ * The CSS font stack for a font asset id. The single place any caller should
+ * derive a family from — deriving it inline is how the value and label of one
+ * layer ended up in different faces.
+ */
+export function resolveFamilyStack(asset: string | undefined, rctx: RenderContext): string {
+  if (!asset) return 'sans-serif'
+  return rctx.fonts[asset]?.stack ?? 'sans-serif'
 }
 
 export function buildFontString(font: Font | undefined, rctx: RenderContext): string {
@@ -40,7 +62,7 @@ export function buildFontString(font: Font | undefined, rctx: RenderContext): st
   if (font.asset) {
     const asset = rctx.fonts[font.asset]
     if (asset) {
-      family = buildFamilyStack(asset.family, asset.fallback)
+      family = asset.stack
       if (!font.weight && asset.weight) {
         return `${asset.weight} ${font.size}px ${family}`
       }

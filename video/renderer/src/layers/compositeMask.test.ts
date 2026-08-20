@@ -75,6 +75,84 @@ describe('drawCompositeMaskLayer', () => {
     expect(contexts.every(c => !c.calls.some(call => call.method === 'set:filter'))).toBe(true)
   })
 
+  it('keeps a non-downscale maskEffect when a blur floor is configured', () => {
+    const ctx = createStubCtx()
+    const rctx = makeRctx({ images: { photo: IMAGE } })
+    rctx.options.constraints = { minDownscaleBlurPx: 48, minDownscaleShrink: 20 }
+    const inner: ReturnType<typeof createStubCtx>[] = []
+    rctx.options.createCanvas = (width, height) => {
+      const sub = createStubCtx()
+      inner.push(sub)
+      return { width, height, getContext: () => sub } as unknown as HTMLCanvasElement
+    }
+    const layer = {
+      type: 'compositeMask',
+      source: 'photo',
+      maskEffect: { type: 'gaussianBlur', radius: 120 },
+      mask,
+    } as CompositeMaskLayer
+
+    drawCompositeMaskLayer(ctx, layer, 500, rctx)
+
+    // The floor raises the downscale blur; it must not swallow the declared effect.
+    const filters = inner.flatMap(c => c.calls.filter(x => x.method === 'set:filter').map(x => x.args[0]))
+    expect(filters).toContain('blur(120px)')
+    expect(filters).toContain('blur(2.4px)')
+  })
+
+  it('scopes a maskEffect filter so it cannot feather the mask composite', () => {
+    const ctx = createStubCtx()
+    const rctx = makeRctx({ images: { photo: IMAGE } })
+    const inner: ReturnType<typeof createStubCtx>[] = []
+    rctx.options.createCanvas = (width, height) => {
+      const sub = createStubCtx()
+      inner.push(sub)
+      return { width, height, getContext: () => sub } as unknown as HTMLCanvasElement
+    }
+    const layer = {
+      type: 'compositeMask',
+      source: 'photo',
+      maskEffect: { type: 'gaussianBlur', radius: 60 },
+      mask,
+    } as CompositeMaskLayer
+
+    drawCompositeMaskLayer(ctx, layer, 500, rctx)
+
+    // restore() must land before destination-in is set on the source context.
+    const source = inner.find(c => c.calls.some(x => x.args[0] === 'destination-in'))!
+    const restoreAt = source.calls.findIndex(c => c.method === 'restore')
+    const compositeAt = source.calls.findIndex(c => c.args[0] === 'destination-in')
+    expect(restoreAt).toBeGreaterThan(-1)
+    expect(restoreAt).toBeLessThan(compositeAt)
+  })
+
+  it('does not allocate canvases for a source layer that is not yet visible', () => {
+    const ctx = createStubCtx()
+    const sizes: number[][] = []
+    const rctx = makeRctx()
+    rctx.options.createCanvas = (width, height) => {
+      sizes.push([width, height])
+      return { width, height, getContext: () => createStubCtx() } as unknown as HTMLCanvasElement
+    }
+    const layer = {
+      type: 'compositeMask',
+      source: { type: 'image', asset: 'photo', startMs: 4000, endMs: 6000 } as Layer,
+      mask,
+    } as CompositeMaskLayer
+
+    drawCompositeMaskLayer(ctx, layer, 500, rctx)
+
+    expect(sizes).toHaveLength(0)
+    expect(ctx.calls).toHaveLength(0)
+  })
+
+  it('no-ops instead of throwing when source is missing', () => {
+    const ctx = createStubCtx()
+    const layer = { type: 'compositeMask', mask } as unknown as CompositeMaskLayer
+    expect(() => drawCompositeMaskLayer(ctx, layer, 500, makeRctx())).not.toThrow()
+    expect(ctx.calls).toHaveLength(0)
+  })
+
   it('honours a downscaleBlur maskEffect on a string source', () => {
     const ctx = createStubCtx()
     const rctx = makeRctx({ images: { photo: IMAGE } })

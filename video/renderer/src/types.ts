@@ -26,10 +26,14 @@ export type DataVizDrawer = (
 
 /**
  * Host-supplied floors on how sharply an image may ever be rendered. There is
- * deliberately no document-side counterpart: a document must not be able to opt
- * out, so these clamp rather than warn, and setting `minDownscaleBlurPx` forces
- * every image draw through the downscale-blur path even when the document
- * declares no blur at all.
+ * deliberately no document-side counterpart: these clamp rather than warn, and
+ * setting `minDownscaleBlurPx` forces every `image` layer and every
+ * images-key `compositeMask` source through the downscale-blur path, even when
+ * the document declares no blur at all.
+ *
+ * The floors cover the layers the renderer draws itself. They cannot cover
+ * `components` or `dataVizRenderers`, which are host code handed the raw
+ * context — a host that registers a drawer is responsible for what it paints.
  */
 export interface RendererConstraints {
   minDownscaleBlurPx?: number
@@ -55,7 +59,7 @@ export interface RenderContext {
   height: number
   resolve: ResolveContext
   options: RendererOptions
-  fonts: Record<string, { family: string; weight: number; fallback?: string[] }>
+  fonts: Record<string, { family: string; weight: number; stack: string }>
   drawLayer: (ctx: CanvasRenderingContext2D, layer: Layer, tMs: number) => void
   sceneStartMs: number
 }

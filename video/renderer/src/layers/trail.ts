@@ -31,7 +31,17 @@ export function trailSamples(layer: TrailLayer, tMs: number): TrailSample[] {
     if (floorMs !== undefined && ts < floorMs) break
     const p = evaluatePoint(layer.source, ts)
     const r = evaluateNumber(layer.radius, ts) * (1 - (falloff * i) / samples)
-    if (r <= 0) continue
+    // `!(r > 0)` rather than `r <= 0`, so NaN is rejected too: a non-finite
+    // radius silently empties the path, and an empty mask erases everything
+    // it was meant to reveal.
+    if (!(r > 0) || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) continue
+
+    // A source that clamp-holds (keyframes starting after the sampled time)
+    // repeats its endpoint. Those samples are geometrically inside the one
+    // before them, so they cost evaluation and a subpath to draw nothing.
+    const prev = out[out.length - 1]
+    if (prev && prev.x === p[0] && prev.y === p[1] && r <= prev.r) continue
+
     out.push({ x: p[0], y: p[1], r })
   }
   return out

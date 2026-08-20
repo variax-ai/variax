@@ -1,7 +1,7 @@
 import type { TextLayer } from '@variax-ai/video-schema'
 import type { RenderContext } from '../types'
 import { resolveColor } from '../resolve'
-import { buildFontString, resolveContent, wrapText, fillFittedText } from '../text'
+import { buildFontString, resolveContent, resolveFamilyStack, wrapText, fillFittedText } from '../text'
 
 export function drawTextLayer(
   ctx: CanvasRenderingContext2D,
@@ -22,9 +22,7 @@ export function drawTextLayer(
 
   const basePx = layer.font?.size ?? 48
   const weight = layer.font?.weight ?? (rctx.fonts[layer.font?.asset ?? '']?.weight ?? 400)
-  const family = layer.font?.asset
-    ? `'${rctx.fonts[layer.font.asset]?.family ?? 'sans-serif'}', sans-serif`
-    : 'sans-serif'
+  const family = resolveFamilyStack(layer.font?.asset, rctx)
 
   if (layer.shrinkToFit && layer.maxWidth) {
     fillFittedText(ctx, content, 0, 0, layer.maxWidth, basePx, weight, family, layer.minSize)

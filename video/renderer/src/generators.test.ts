@@ -114,3 +114,14 @@ describe('startMs time origin', () => {
     }
   })
 })
+
+describe('pulse before its time origin', () => {
+  it('stays inside [from, to) rather than ramping negative', () => {
+    const params = { from: 0, to: 1, periodMs: 1000, startMs: 2000 }
+    for (let t = 0; t < 2000; t += 50) {
+      const v = evaluateGenerator({ fn: 'pulse', params }, t)
+      expect(v).toBeGreaterThanOrEqual(0)
+      expect(v).toBeLessThan(1)
+    }
+  })
+})

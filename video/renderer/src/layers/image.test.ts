@@ -146,3 +146,48 @@ describe('drawImageLayer with a blur floor', () => {
     expect(sizes).toEqual([[1920, 1080], [1920, 1080], [96, 54]])
   })
 })
+
+describe('the blur floor cannot be opted out of', () => {
+  const floor: RendererConstraints = { minDownscaleBlurPx: 48 }
+
+  it('ignores a negative shrink instead of dropping the floor', () => {
+    const ctx = createStubCtx()
+    const { rctx, sizes } = makeRctx(floor)
+    const layer = imageLayer({ effects: [{ type: 'downscaleBlur', radius: 0, shrink: -1 }] })
+    drawImageLayer(ctx, layer, 0, rctx)
+    // Falls back to the default shrink of 20 and still smudges.
+    expect(sizes).toEqual([[48, 48]])
+  })
+
+  it('ignores a zero shrink instead of dropping the floor', () => {
+    const ctx = createStubCtx()
+    const { rctx, sizes } = makeRctx(floor)
+    drawImageLayer(ctx, imageLayer({ effects: [{ type: 'downscaleBlur', radius: 56, shrink: 0 }] }), 0, rctx)
+    expect(sizes).toEqual([[48, 48]])
+  })
+
+  it('ignores a NaN radius instead of dropping the floor', () => {
+    const ctx = createStubCtx()
+    const { rctx } = makeRctx(floor)
+    let inner: ReturnType<typeof createStubCtx> | undefined
+    rctx.options.createCanvas = (width, height) => {
+      inner = createStubCtx()
+      return { width, height, getContext: () => inner } as unknown as HTMLCanvasElement
+    }
+    // periodMs 0 makes Math.sin(Infinity) NaN.
+    const layer = imageLayer({
+      effects: [{ type: 'downscaleBlur', radius: { generator: { fn: 'sine', params: { periodMs: 0 } } }, shrink: 20 }],
+    })
+    drawImageLayer(ctx, layer, 100, rctx)
+    expect(inner?.calls.some(c => c.method === 'set:filter' && c.args[0] === 'blur(2.4px)')).toBe(true)
+  })
+
+  it('still draws an unframed image when the blur was only the document\'s idea', () => {
+    const ctx = createStubCtx()
+    const opaque = {} as unknown as CanvasImageSource
+    const { rctx } = makeRctx(undefined, opaque)
+    const layer = imageLayer({ frame: undefined, effects: [{ type: 'downscaleBlur', radius: 30, shrink: 10 }] })
+    drawImageLayer(ctx, layer, 0, rctx)
+    expect(getCalls(ctx, 'drawImage')).toHaveLength(1)
+  })
+})

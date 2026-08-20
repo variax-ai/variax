@@ -71,18 +71,28 @@ export function resolveDownscaleBlur(
   rctx: RenderContext,
 ): { radius: number; shrink: number } | null {
   const constraints = rctx.options.constraints
-  let radius = declared?.radius ?? 0
-  let shrink = declared?.shrink || 20
 
-  if (constraints?.minDownscaleBlurPx !== undefined) {
-    radius = Math.max(constraints.minDownscaleBlurPx, radius)
-  }
-  if (constraints?.minDownscaleShrink !== undefined) {
-    shrink = Math.max(constraints.minDownscaleShrink, shrink)
-  }
+  // Non-finite and non-positive declared values are discarded before the floor
+  // is applied, never after: a document that says `shrink: -1` or animates
+  // `radius` to NaN must fall back to the floor, not escape it.
+  const declaredRadius = finiteOr(declared?.radius, 0)
+  const declaredShrink = positiveOr(declared?.shrink, DEFAULT_SHRINK)
 
-  if (!(radius > 0) || !(shrink > 0)) return null
+  const radius = Math.max(finiteOr(constraints?.minDownscaleBlurPx, 0), declaredRadius)
+  const shrink = Math.max(positiveOr(constraints?.minDownscaleShrink, 0), declaredShrink)
+
+  if (radius <= 0) return null
   return { radius, shrink }
+}
+
+const DEFAULT_SHRINK = 20
+
+function finiteOr(v: number | undefined, fallback: number): number {
+  return typeof v === 'number' && Number.isFinite(v) ? v : fallback
+}
+
+function positiveOr(v: number | undefined, fallback: number): number {
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : fallback
 }
 
 /**
@@ -99,8 +109,8 @@ function intrinsicSize(image: CanvasImageSource): { w: number; h: number } | nul
     }
     return undefined
   }
-  const w = pick('naturalWidth', 'videoWidth', 'codedWidth', 'width')
-  const h = pick('naturalHeight', 'videoHeight', 'codedHeight', 'height')
+  const w = pick('naturalWidth', 'videoWidth', 'displayWidth', 'codedWidth', 'width')
+  const h = pick('naturalHeight', 'videoHeight', 'displayHeight', 'codedHeight', 'height')
   if (w === undefined || h === undefined) return null
   return { w, h }
 }
@@ -123,11 +133,17 @@ export function drawImageLayer(
       ctx.drawImage(image, 0, 0)
       return
     }
-    // Fail closed: a floor is configured but we cannot work out the box to
-    // smudge into, so nothing is drawn rather than something sharp.
     const size = intrinsicSize(image)
-    if (!size) return
-    drawSmudgedImage(ctx, image, { x: 0, y: 0, w: size.w, h: size.h }, dsb.radius, dsb.shrink, rctx)
+    if (size) {
+      drawSmudgedImage(ctx, image, { x: 0, y: 0, w: size.w, h: size.h }, dsb.radius, dsb.shrink, rctx)
+      return
+    }
+    // The box is unknowable. If a host floor is in force, fail closed — nothing
+    // is drawn rather than something sharp. If the blur was only the document's
+    // own request, honour the pre-existing behaviour and draw it unblurred
+    // rather than making the layer disappear.
+    if (rctx.options.constraints?.minDownscaleBlurPx !== undefined) return
+    ctx.drawImage(image, 0, 0)
     return
   }
 

@@ -112,3 +112,90 @@ describe('rendering regression baseline', () => {
     expect(stream).toMatchSnapshot()
   })
 })
+
+/**
+ * The layers the Phase 1 work rewrote most heavily. The baseline above
+ * deliberately predates those changes, so it could not cover them; this pins
+ * their call stream going forward.
+ */
+const compositeDoc = {
+  version: 1,
+  width: 1080,
+  height: 1920,
+  fps: 30,
+  durationMs: 3000,
+  scenes: [
+    {
+      id: 'reveal',
+      startMs: 0,
+      endMs: 3000,
+      background: '#000000',
+      layers: [
+        {
+          type: 'compositeMask',
+          source: {
+            type: 'image',
+            asset: 'photo',
+            frame: { x: 120, y: 320, w: 840, h: 1050, radius: 64 },
+            effects: [{ type: 'downscaleBlur', radius: 28, shrink: 12 }],
+          },
+          mask: {
+            type: 'trail',
+            source: {
+              x: { generator: { fn: 'sineStrokes', params: { from: 130, to: 950, strokes: 7, periodMs: 3000, startMs: 0 } } },
+              y: { keyframes: [{ t: 0, value: 450 }, { t: 3000, value: 1240 }] },
+            },
+            windowMs: 500,
+            samples: 10,
+            radius: 78,
+            falloff: 0.6,
+          },
+          transform: { opacity: 0.7 },
+        },
+        {
+          type: 'compositeMask',
+          source: 'photo',
+          maskEffect: { type: 'gaussianBlur', radius: 40 },
+          mask: { type: 'shape', shape: 'ellipse', size: [300, 300], position: [540, 900] },
+        },
+        {
+          type: 'trail',
+          source: [540, 800],
+          windowMs: 500,
+          samples: 10,
+          take: 3,
+          radius: 42.9,
+          falloff: 0.6,
+          stroke: { color: '#ffffff', width: 90 },
+          transform: { opacity: 0.1 },
+        },
+      ],
+    },
+  ],
+} as unknown as VideoDocument
+
+describe('compositeMask and trail regression baseline', () => {
+  it('produces a stable call stream', () => {
+    const stream = renderCallStream(
+      compositeDoc,
+      { vars: {}, images: { photo: IMAGE_STUB }, createCanvas: makeCanvas },
+      [0, 400, 1200, 2400, 2900],
+    )
+    expect(stream).toMatchSnapshot()
+  })
+
+  it('is unchanged in shape when a blur floor is configured', () => {
+    // The floor must raise blur, never remove a draw or a maskEffect.
+    const stream = renderCallStream(
+      compositeDoc,
+      {
+        vars: {},
+        images: { photo: IMAGE_STUB },
+        createCanvas: makeCanvas,
+        constraints: { minDownscaleBlurPx: 48, minDownscaleShrink: 20 },
+      },
+      [0, 400, 1200, 2400, 2900],
+    )
+    expect(stream).toMatchSnapshot()
+  })
+})

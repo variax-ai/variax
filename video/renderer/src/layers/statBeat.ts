@@ -1,7 +1,7 @@
 import type { StatBeatLayer } from '@variax-ai/video-schema'
 import type { RenderContext } from '../types'
 import { resolveColor, resolveNumberVar } from '../resolve'
-import { buildFontString, fillFittedText } from '../text'
+import { buildFontString, fillFittedText, resolveFamilyStack } from '../text'
 import { easeOutCubic, easeOutBack, resolveEasing } from '../easing'
 
 function clamp01(t: number): number {
@@ -59,9 +59,7 @@ export function drawStatBeatLayer(
 
     if (layer.labelFont) {
       const labelWeight = layer.labelFont.weight ?? (rctx.fonts[layer.labelFont.asset ?? '']?.weight ?? 400)
-      const labelFamily = layer.labelFont.asset
-        ? `'${rctx.fonts[layer.labelFont.asset]?.family ?? 'sans-serif'}', sans-serif`
-        : 'sans-serif'
+      const labelFamily = resolveFamilyStack(layer.labelFont.asset, rctx)
       ctx.fillStyle = labelColor
       fillFittedText(
         ctx,

@@ -129,3 +129,30 @@ describe('drawTrailLayer', () => {
     expect(ctx.calls).toHaveLength(0)
   })
 })
+
+describe('trail robustness', () => {
+  it('rejects samples with a non-finite radius', () => {
+    const layer = makeTrail({
+      radius: { generator: { fn: 'sine', params: { periodMs: 0 } } },
+    })
+    expect(trailSamples(layer, 2000)).toHaveLength(0)
+  })
+
+  it('rejects samples with a non-finite position', () => {
+    const layer = makeTrail({
+      source: { x: { generator: { fn: 'sine', params: { periodMs: 0 } } }, y: 500 },
+    } as Partial<TrailLayer>)
+    expect(trailSamples(layer, 2000)).toHaveLength(0)
+  })
+
+  it('drops repeated samples a clamp-holding source produces', () => {
+    // Keyframes start at t=1900, so everything older clamps onto one point.
+    const layer = makeTrail({
+      source: { keyframes: [{ t: 1900, value: [100, 100] }, { t: 5000, value: [900, 100] }] },
+      falloff: 0,
+    } as Partial<TrailLayer>)
+    const samples = trailSamples(layer, 1950)
+    expect(samples).toHaveLength(2)
+    expect(samples[1]).toEqual({ x: 100, y: 100, r: 78 })
+  })
+})

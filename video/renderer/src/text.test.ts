@@ -30,6 +30,15 @@ describe('buildFontString', () => {
     expect(result).toBe("600 48px 'Inter', sans-serif")
   })
 
+  it('escapes an apostrophe so the font string stays parseable', () => {
+    const rctx = createTestRctx({
+      fonts: { heading: { family: 'Inter', weight: 600, fallback: ["Sam's Sans"] } },
+    })
+    expect(buildFontString({ size: 48, asset: 'heading' }, rctx)).toBe(
+      "600 48px 'Inter', 'Sam\\'s Sans', sans-serif",
+    )
+  })
+
   it('emits the full fallback stack in order', () => {
     const rctx = createTestRctx({
       fonts: { heading: { family: 'Lilita One', weight: 400, fallback: ['Baloo 2', 'system-ui'] } },

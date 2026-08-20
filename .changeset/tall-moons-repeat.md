@@ -17,4 +17,6 @@ Add the primitives needed to describe scratch-reveal and path-following motion d
 
 **Renderer-enforced blur constraints.** `RendererOptions.constraints` takes `minDownscaleBlurPx` and `minDownscaleShrink`. These are a safety boundary, not a hint: they clamp rather than warn, and a document cannot opt out. Setting `minDownscaleBlurPx` forces *every* image draw through the downscale path — including layers that declare no blur, declare `radius: 0`, or omit `frame` — because omission was otherwise the easy way around a floor. An unframed image whose intrinsic size cannot be determined is not drawn at all rather than drawn sharp.
 
+`pulse` now uses a Euclidean modulo, so it stays inside `[from, to)` for times before its origin instead of ramping negative — reachable for the first time via `startMs`.
+
 Two consequences worth noting. A `downscaleBlur` used as `compositeMask.maskEffect` was previously dropped silently and now takes effect. And constraints apply to every image layer, so a document mixing a protected image with an unprotected one is not yet expressible — a host-supplied `constraints.exemptAssets` is the natural follow-up. `options.components` and `options.dataVizRenderers` are host code and draw outside this guarantee.

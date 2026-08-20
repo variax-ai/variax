@@ -35,7 +35,11 @@ const pulse: GeneratorFn = (tMs, params) => {
   const from = num(params.from, 0)
   const to = num(params.to, 1)
   const periodMs = num(params.periodMs, 1000)
-  const t = (tMs / periodMs) % 1
+  // Euclidean modulo: JS `%` keeps the dividend's sign, so a `startMs` that
+  // puts the generator before its origin would otherwise ramp backwards below
+  // `from`. The sines are already periodic for negative time; this makes the
+  // sawtooth match, and keeps the output inside [from, to).
+  const t = (((tMs / periodMs) % 1) + 1) % 1
   return from + (to - from) * t
 }
 
