@@ -170,7 +170,112 @@ describe('drawCompositeMaskLayer', () => {
 
     drawCompositeMaskLayer(ctx, layer, 500, rctx)
 
-    // Mask canvas, source canvas, then the downscale buffer at 1/20 scale.
-    expect(sizes).toEqual([[1920, 1080], [1920, 1080], [96, 54]])
+    // Mask canvas and source canvas cover the mask, not the document: the
+    // ellipse is centred on the origin, so only a quarter of it is on-canvas.
+    // The downscale buffer stays at 1/20 of the document, so the blur it
+    // produces does not change with the crop.
+    expect(sizes).toEqual([[52, 52], [52, 52], [96, 54]])
+  })
+})
+
+describe('drawCompositeMaskLayer cropping', () => {
+  function withSizes(overrides: Parameters<typeof createTestRctx>[0] = {}) {
+    const rctx = makeRctx(overrides)
+    const sizes: number[][] = []
+    rctx.options.createCanvas = (width, height) => {
+      sizes.push([width, height])
+      return { width, height, getContext: () => createStubCtx() } as unknown as HTMLCanvasElement
+    }
+    return { rctx, sizes }
+  }
+
+  const positioned = (over: Record<string, unknown> = {}): Layer =>
+    ({ type: 'shape', shape: 'ellipse', size: [100, 100], fill: '#fff', position: [500, 400], ...over }) as Layer
+
+  it('sizes both buffers to the mask and blits them back at its origin', () => {
+    const ctx = createStubCtx()
+    const { rctx, sizes } = withSizes({ images: { photo: IMAGE } })
+    drawCompositeMaskLayer(
+      ctx,
+      { type: 'compositeMask', source: 'photo', mask: positioned() } as CompositeMaskLayer,
+      0,
+      rctx,
+    )
+    // 100px ellipse at (500,400), plus the guard band on each side.
+    expect(sizes).toEqual([[104, 104], [104, 104]])
+    expect(getCalls(ctx, 'drawImage')[0].args.slice(1)).toEqual([448, 348])
+  })
+
+  it('falls back to the whole document for a mask whose extent it cannot derive', () => {
+    const ctx = createStubCtx()
+    const { rctx, sizes } = withSizes({ images: { photo: IMAGE } })
+    const text = { type: 'text', content: 'MASK', font: { size: 90 }, position: [500, 400] } as Layer
+    drawCompositeMaskLayer(
+      ctx,
+      { type: 'compositeMask', source: 'photo', mask: text } as CompositeMaskLayer,
+      0,
+      rctx,
+    )
+    expect(sizes).toEqual([[1920, 1080], [1920, 1080]])
+    expect(getCalls(ctx, 'drawImage')[0].args.slice(1)).toEqual([0, 0])
+  })
+
+  it('grows the crop by the reach of a blurred source, which cannot see past it', () => {
+    const ctx = createStubCtx()
+    const { rctx, sizes } = withSizes({ images: { photo: IMAGE } })
+    drawCompositeMaskLayer(
+      ctx,
+      {
+        type: 'compositeMask',
+        source: 'photo',
+        maskEffect: { type: 'gaussianBlur', radius: 20 },
+        mask: positioned(),
+      } as CompositeMaskLayer,
+      0,
+      rctx,
+    )
+    // 104 from the mask, plus three standard deviations of blur on each side.
+    expect(sizes).toEqual([[224, 224], [224, 224]])
+  })
+
+  it('draws nothing at all when the mask paints nothing', () => {
+    const ctx = createStubCtx()
+    const { rctx, sizes } = withSizes({ images: { photo: IMAGE } })
+    const notYet = positioned({ startMs: 4000 })
+    drawCompositeMaskLayer(
+      ctx,
+      { type: 'compositeMask', source: 'photo', mask: notYet } as CompositeMaskLayer,
+      0,
+      rctx,
+    )
+    expect(sizes).toHaveLength(0)
+    expect(ctx.calls).toHaveLength(0)
+  })
+
+  it('draws nothing when the mask lies entirely off the document', () => {
+    const ctx = createStubCtx()
+    const { rctx, sizes } = withSizes({ images: { photo: IMAGE } })
+    drawCompositeMaskLayer(
+      ctx,
+      { type: 'compositeMask', source: 'photo', mask: positioned({ position: [-400, 400] }) } as CompositeMaskLayer,
+      0,
+      rctx,
+    )
+    expect(sizes).toHaveLength(0)
+    expect(ctx.calls).toHaveLength(0)
+  })
+
+  it('clips the crop to the document rather than allocating past its edge', () => {
+    const ctx = createStubCtx()
+    const { rctx, sizes } = withSizes({ images: { photo: IMAGE } })
+    drawCompositeMaskLayer(
+      ctx,
+      { type: 'compositeMask', source: 'photo', mask: positioned({ position: [1900, 400] }) } as CompositeMaskLayer,
+      0,
+      rctx,
+    )
+    // The ellipse runs from 1850 to 1950 on a 1920-wide document.
+    expect(sizes).toEqual([[72, 104], [72, 104]])
+    expect(getCalls(ctx, 'drawImage')[0].args.slice(1)).toEqual([1848, 348])
   })
 })

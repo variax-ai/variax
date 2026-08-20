@@ -364,8 +364,10 @@ describe('trail layer rendering', () => {
     })(ctx, 1000)
 
     // Mask canvas, source canvas, then the source image layer's own downscale
-    // buffer — proof the masked re-draw goes through the image pipeline.
-    expect(offscreens).toEqual([[1920, 1080], [1920, 1080], [20, 20]])
+    // buffer — proof the masked re-draw goes through the image pipeline. The
+    // first two are the trail's own extent (120px across, plus a guard band),
+    // not the document: nothing outside the mask survives the composite.
+    expect(offscreens).toEqual([[124, 124], [124, 124], [20, 20]])
     expect(getCalls(ctx, 'drawImage')).toHaveLength(1)
   })
 })

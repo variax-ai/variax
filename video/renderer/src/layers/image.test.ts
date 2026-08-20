@@ -142,8 +142,10 @@ describe('drawImageLayer with a blur floor', () => {
       mask: { type: 'shape', shape: 'ellipse', size: [100, 100] } as Layer,
     } as CompositeMaskLayer
     drawCompositeMaskLayer(ctx, layer, 0, rctx)
-    // Mask canvas, source canvas, then the forced downscale buffer.
-    expect(sizes).toEqual([[1920, 1080], [1920, 1080], [96, 54]])
+    // Mask canvas and source canvas are the mask's extent — a 100px ellipse on
+    // the origin, so a quarter of it is on-canvas — then the forced downscale
+    // buffer, which stays document-scaled so the blur is unchanged.
+    expect(sizes).toEqual([[52, 52], [52, 52], [96, 54]])
   })
 })
 
