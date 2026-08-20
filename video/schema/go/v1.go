@@ -73,6 +73,9 @@ type CaptionSequenceLayer struct {
 	// Font corresponds to the JSON schema field "font".
 	Font *Font `json:"font,omitempty,omitzero" yaml:"font,omitempty" mapstructure:"font,omitempty"`
 
+	// Id corresponds to the JSON schema field "id".
+	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
+
 	// MaxWidth corresponds to the JSON schema field "maxWidth".
 	MaxWidth *float64 `json:"maxWidth,omitempty,omitzero" yaml:"maxWidth,omitempty" mapstructure:"maxWidth,omitempty"`
 
@@ -140,6 +143,9 @@ type CompositeMaskLayer struct {
 
 	// EndMs corresponds to the JSON schema field "endMs".
 	EndMs *float64 `json:"endMs,omitempty,omitzero" yaml:"endMs,omitempty" mapstructure:"endMs,omitempty"`
+
+	// Id corresponds to the JSON schema field "id".
+	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
 
 	// Mask corresponds to the JSON schema field "mask".
 	Mask Layer `json:"mask" yaml:"mask" mapstructure:"mask"`
@@ -226,6 +232,9 @@ type DataVizLayer struct {
 
 	// EndMs corresponds to the JSON schema field "endMs".
 	EndMs *float64 `json:"endMs,omitempty,omitzero" yaml:"endMs,omitempty" mapstructure:"endMs,omitempty"`
+
+	// Id corresponds to the JSON schema field "id".
+	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
 
 	// Persist corresponds to the JSON schema field "persist".
 	Persist *bool `json:"persist,omitempty,omitzero" yaml:"persist,omitempty" mapstructure:"persist,omitempty"`
@@ -683,6 +692,9 @@ type GroupLayer struct {
 	// EndMs corresponds to the JSON schema field "endMs".
 	EndMs *float64 `json:"endMs,omitempty,omitzero" yaml:"endMs,omitempty" mapstructure:"endMs,omitempty"`
 
+	// Id corresponds to the JSON schema field "id".
+	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
+
 	// Persist corresponds to the JSON schema field "persist".
 	Persist *bool `json:"persist,omitempty,omitzero" yaml:"persist,omitempty" mapstructure:"persist,omitempty"`
 
@@ -777,6 +789,9 @@ type ImageLayer struct {
 	// Frame corresponds to the JSON schema field "frame".
 	Frame *Frame `json:"frame,omitempty,omitzero" yaml:"frame,omitempty" mapstructure:"frame,omitempty"`
 
+	// Id corresponds to the JSON schema field "id".
+	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
+
 	// Persist corresponds to the JSON schema field "persist".
 	Persist *bool `json:"persist,omitempty,omitzero" yaml:"persist,omitempty" mapstructure:"persist,omitempty"`
 
@@ -824,6 +839,10 @@ func (j *ImageLayer) UnmarshalJSON(value []byte) error {
 }
 
 type Layer interface{}
+
+// Author-chosen identifier for a layer, unique within the document. Only needed by
+// things that refer to a layer, such as a shape's `sizeTo`.
+type LayerId string
 
 type NumberKeyframe struct {
 	// Easing corresponds to the JSON schema field "easing".
@@ -907,6 +926,9 @@ type RefLayer struct {
 	// EndMs corresponds to the JSON schema field "endMs".
 	EndMs *float64 `json:"endMs,omitempty,omitzero" yaml:"endMs,omitempty" mapstructure:"endMs,omitempty"`
 
+	// Id corresponds to the JSON schema field "id".
+	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
+
 	// Params corresponds to the JSON schema field "params".
 	Params RefLayerParams `json:"params,omitempty,omitzero" yaml:"params,omitempty" mapstructure:"params,omitempty"`
 
@@ -982,6 +1004,9 @@ type RepeaterLayer struct {
 
 	// EndMs corresponds to the JSON schema field "endMs".
 	EndMs *float64 `json:"endMs,omitempty,omitzero" yaml:"endMs,omitempty" mapstructure:"endMs,omitempty"`
+
+	// Id corresponds to the JSON schema field "id".
+	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
 
 	// Persist corresponds to the JSON schema field "persist".
 	Persist *bool `json:"persist,omitempty,omitzero" yaml:"persist,omitempty" mapstructure:"persist,omitempty"`
@@ -1138,6 +1163,9 @@ type ShapeLayer struct {
 	// Fill corresponds to the JSON schema field "fill".
 	Fill *string `json:"fill,omitempty,omitzero" yaml:"fill,omitempty" mapstructure:"fill,omitempty"`
 
+	// Id corresponds to the JSON schema field "id".
+	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
+
 	// Path corresponds to the JSON schema field "path".
 	Path *string `json:"path,omitempty,omitzero" yaml:"path,omitempty" mapstructure:"path,omitempty"`
 
@@ -1156,8 +1184,11 @@ type ShapeLayer struct {
 	// Shape corresponds to the JSON schema field "shape".
 	Shape ShapeLayerShape `json:"shape" yaml:"shape" mapstructure:"shape"`
 
-	// Size corresponds to the JSON schema field "size".
+	// Fixed size, centred on the layer's origin. Ignored when `sizeTo` is given.
 	Size []float64 `json:"size,omitempty,omitzero" yaml:"size,omitempty" mapstructure:"size,omitempty"`
+
+	// SizeTo corresponds to the JSON schema field "sizeTo".
+	SizeTo *SizeTo `json:"sizeTo,omitempty,omitzero" yaml:"sizeTo,omitempty" mapstructure:"sizeTo,omitempty"`
 
 	// StartMs corresponds to the JSON schema field "startMs".
 	StartMs *float64 `json:"startMs,omitempty,omitzero" yaml:"startMs,omitempty" mapstructure:"startMs,omitempty"`
@@ -1247,6 +1278,44 @@ func (j *ShapeLayer) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+// Derives a shape's box from the text layer it backs, so a card grows with the
+// message inside it. The renderer is the only thing that knows how the text wraps,
+// and sizing it here is what lets a document whose text comes from a var be
+// authored ahead of time instead of built at render time. The box is the text's
+// laid-out extent plus `padding` on each side, centred on the shape's own origin —
+// position the text at the same point to have them line up.
+type SizeTo struct {
+	// The `id` of a text layer, anywhere in the document.
+	Layer string `json:"layer" yaml:"layer" mapstructure:"layer"`
+
+	// MinHeight corresponds to the JSON schema field "minHeight".
+	MinHeight *float64 `json:"minHeight,omitempty,omitzero" yaml:"minHeight,omitempty" mapstructure:"minHeight,omitempty"`
+
+	// MinWidth corresponds to the JSON schema field "minWidth".
+	MinWidth *float64 `json:"minWidth,omitempty,omitzero" yaml:"minWidth,omitempty" mapstructure:"minWidth,omitempty"`
+
+	// Added on each side, as [x, y]. A single number pads both axes equally.
+	Padding interface{} `json:"padding,omitempty,omitzero" yaml:"padding,omitempty" mapstructure:"padding,omitempty"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *SizeTo) UnmarshalJSON(value []byte) error {
+	var raw map[string]interface{}
+	if err := json.Unmarshal(value, &raw); err != nil {
+		return err
+	}
+	if _, ok := raw["layer"]; raw != nil && !ok {
+		return fmt.Errorf("field layer in SizeTo: required")
+	}
+	type Plain SizeTo
+	var plain Plain
+	if err := json.Unmarshal(value, &plain); err != nil {
+		return err
+	}
+	*j = SizeTo(plain)
+	return nil
+}
+
 type StatBeatEntry struct {
 	// CountUpMs corresponds to the JSON schema field "countUpMs".
 	CountUpMs *float64 `json:"countUpMs,omitempty,omitzero" yaml:"countUpMs,omitempty" mapstructure:"countUpMs,omitempty"`
@@ -1303,6 +1372,9 @@ type StatBeatLayer struct {
 
 	// Entrance corresponds to the JSON schema field "entrance".
 	Entrance *string `json:"entrance,omitempty,omitzero" yaml:"entrance,omitempty" mapstructure:"entrance,omitempty"`
+
+	// Id corresponds to the JSON schema field "id".
+	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
 
 	// LabelColor corresponds to the JSON schema field "labelColor".
 	LabelColor *string `json:"labelColor,omitempty,omitzero" yaml:"labelColor,omitempty" mapstructure:"labelColor,omitempty"`
@@ -1441,6 +1513,9 @@ type TextLayer struct {
 	// Font corresponds to the JSON schema field "font".
 	Font *Font `json:"font,omitempty,omitzero" yaml:"font,omitempty" mapstructure:"font,omitempty"`
 
+	// Id corresponds to the JSON schema field "id".
+	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
+
 	// LineHeight corresponds to the JSON schema field "lineHeight".
 	LineHeight *float64 `json:"lineHeight,omitempty,omitzero" yaml:"lineHeight,omitempty" mapstructure:"lineHeight,omitempty"`
 
@@ -1560,6 +1635,9 @@ type TrailLayer struct {
 
 	// Fills the union of circles. Defaults to #ffffff when no `stroke` is given.
 	Fill *string `json:"fill,omitempty,omitzero" yaml:"fill,omitempty" mapstructure:"fill,omitempty"`
+
+	// Id corresponds to the JSON schema field "id".
+	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
 
 	// Persist corresponds to the JSON schema field "persist".
 	Persist *bool `json:"persist,omitempty,omitzero" yaml:"persist,omitempty" mapstructure:"persist,omitempty"`

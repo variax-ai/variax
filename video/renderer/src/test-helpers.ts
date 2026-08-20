@@ -71,6 +71,7 @@ export function createTestRctx(overrides?: Partial<RendererOptions> & { tokens?:
         { family: f.family, weight: f.weight, stack: buildFamilyStack(f.family, f.fallback) },
       ]),
     ),
+    layersById: {},
     drawLayer: (_ctx: CanvasRenderingContext2D, _layer: Layer, _tMs: number) => {},
     sceneStartMs: 0,
   }

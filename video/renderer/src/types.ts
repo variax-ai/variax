@@ -60,6 +60,12 @@ export interface RenderContext {
   resolve: ResolveContext
   options: RendererOptions
   fonts: Record<string, { family: string; weight: number; stack: string }>
+  /**
+   * Every layer that declared an `id`, from anywhere in the document. Built
+   * once at load: a shape's `sizeTo` names the text layer it backs, and that
+   * layer need not be its sibling.
+   */
+  layersById: Record<string, Layer>
   drawLayer: (ctx: CanvasRenderingContext2D, layer: Layer, tMs: number) => void
   sceneStartMs: number
 }

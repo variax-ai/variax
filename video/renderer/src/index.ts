@@ -4,6 +4,7 @@ import { drawFrame } from './scene'
 import { drawLayer as drawLayerImpl } from './layers/index'
 import { buildFontRegistry } from './fonts'
 import { resolveDocumentDefs } from './defs'
+import { indexLayersById } from './layer-index'
 import type { Layer } from '@variax-ai/video-schema'
 
 export type {
@@ -44,6 +45,7 @@ export function createDocumentDrawer(
     },
     options,
     fonts,
+    layersById: indexLayersById(doc),
     drawLayer: (ctx: CanvasRenderingContext2D, layer: Layer, tMs: number) => {
       drawLayerImpl(ctx, layer, tMs, rctx)
     },

@@ -69,7 +69,7 @@ VideoDocument
 
 | Type | Purpose |
 |------|---------|
-| `shape` | rect, ellipse, path, line with fill/stroke |
+| `shape` | rect, ellipse, path, line with fill/stroke; `sizeTo` grows the box to a text layer |
 | `text` | single/multiline, auto-shrink, wrap, data-bound content |
 | `image` | asset ref with frame rect and clip |
 | `group` | children[] with own transform |
@@ -89,6 +89,8 @@ VideoDocument
 - **Colors as hex strings** (`"#6c4df6"`)
 - **Full property names** (`position`, `opacity`), not Lottie shorthand
 - **Generators are a closed registry**: unknown names are validation errors
+- **Layers may declare an `id`**, unique per document, for the few things that
+  refer to a layer — currently a shape's `sizeTo`
 - **Scenes are first-class**: named segments with their own layer stacks
 
 ### Ref strings

@@ -1,4 +1,4 @@
-import type { Font, TemplateString } from '@variax-ai/video-schema'
+import type { Font, TemplateString, TextLayer } from '@variax-ai/video-schema'
 import type { RenderContext } from './types'
 import { resolveString } from './resolve'
 import { evaluateGenerator } from './generators'
@@ -135,6 +135,32 @@ export function wrapText(
 const fittedCache = new Map<string, number>()
 const FITTED_CACHE_MAX = 128
 
+/**
+ * The size `text` has to shrink to in order to fit `maxWidth`, floored at
+ * `minPx`. Cached: the same string, font and box give the same answer on every
+ * frame of the shot it appears in.
+ */
+export function fittedFontSize(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidth: number,
+  basePx: number,
+  weight: string | number,
+  family: string,
+  minPx = 24,
+): number {
+  const key = `${weight}|${family}|${basePx}|${maxWidth}|${minPx}|${text}`
+  const cached = fittedCache.get(key)
+  if (cached !== undefined) return cached
+
+  ctx.font = `${weight} ${basePx}px ${family}`
+  const measured = ctx.measureText(text).width
+  const px = measured > maxWidth ? Math.max(minPx, Math.floor((basePx * maxWidth) / measured)) : basePx
+  if (fittedCache.size >= FITTED_CACHE_MAX) fittedCache.clear()
+  fittedCache.set(key, px)
+  return px
+}
+
 export function fillFittedText(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -146,15 +172,79 @@ export function fillFittedText(
   family: string,
   minPx = 24,
 ): void {
-  const key = `${weight}|${family}|${basePx}|${maxWidth}|${minPx}|${text}`
-  let px = fittedCache.get(key)
-  if (px === undefined) {
-    ctx.font = `${weight} ${basePx}px ${family}`
-    const measured = ctx.measureText(text).width
-    px = measured > maxWidth ? Math.max(minPx, Math.floor((basePx * maxWidth) / measured)) : basePx
-    if (fittedCache.size >= FITTED_CACHE_MAX) fittedCache.clear()
-    fittedCache.set(key, px)
-  }
+  const px = fittedFontSize(ctx, text, maxWidth, basePx, weight, family, minPx)
   ctx.font = `${weight} ${px}px ${family}`
   ctx.fillText(text, x, y)
 }
+
+/** How a text layer is laid out, before anything is painted. */
+export interface TextLayout {
+  /** The wrapped lines, in order. A layer that does not wrap has one. */
+  lines: string[]
+  /** Distance between line baselines, and the height of a single line. */
+  lineHeight: number
+  /** The `ctx.font` the lines are drawn with, after any shrink-to-fit. */
+  font: string
+  /** `lines.length * lineHeight`, the vertical box the lines occupy. */
+  height: number
+}
+
+/**
+ * Lays out a text layer without drawing it: the wrapping, the shrink-to-fit
+ * size and the resulting height, all from the one place that knows them.
+ *
+ * `drawTextLayer` paints exactly this, and a shape's `sizeTo` measures exactly
+ * this, so a card and the text it backs cannot disagree about how many lines
+ * there are. Sets `ctx.font` to the layout's font, which is what the caller
+ * needs next in both cases.
+ *
+ * Width is deliberately not part of it: measuring every line costs a
+ * `measureText` per frame that only `sizeTo` needs. Ask for it with
+ * `measureLayoutWidth`.
+ */
+export function layoutTextLayer(
+  ctx: CanvasRenderingContext2D,
+  layer: TextLayer,
+  rctx: RenderContext,
+  tMs: number,
+): TextLayout | null {
+  const content = resolveContent(layer.content, rctx, tMs)
+  if (!content) return null
+
+  const basePx = layer.font?.size ?? 48
+
+  if (layer.shrinkToFit && layer.maxWidth) {
+    const weight = layer.font?.weight ?? (rctx.fonts[layer.font?.asset ?? '']?.weight ?? 400)
+    const family = resolveFamilyStack(layer.font?.asset, rctx)
+    const px = fittedFontSize(ctx, content, layer.maxWidth, basePx, weight, family, layer.minSize)
+    const font = `${weight} ${px}px ${family}`
+    const lineHeight = layer.lineHeight ?? px * LINE_HEIGHT_RATIO
+    ctx.font = font
+    return { lines: [content], lineHeight, font, height: lineHeight }
+  }
+
+  const font = buildFontString(layer.font, rctx)
+  ctx.font = font
+  const lines =
+    layer.wrap && layer.maxWidth
+      ? wrapText(t => ctx.measureText(t).width, content, layer.maxWidth)
+      : [content]
+  const lineHeight = layer.lineHeight ?? basePx * LINE_HEIGHT_RATIO
+  return { lines, lineHeight, font, height: lines.length * lineHeight }
+}
+
+/** The widest line of a layout. Leaves the context as it was found. */
+export function measureLayoutWidth(ctx: CanvasRenderingContext2D, layout: TextLayout): number {
+  ctx.save()
+  try {
+    ctx.font = layout.font
+    let width = 0
+    for (const line of layout.lines) width = Math.max(width, ctx.measureText(line).width)
+    return width
+  } finally {
+    ctx.restore()
+  }
+}
+
+/** The default line box, when a layer declares no `lineHeight`. */
+const LINE_HEIGHT_RATIO = 1.2

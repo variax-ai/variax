@@ -1,7 +1,7 @@
 import type { TextLayer } from '@variax-ai/video-schema'
 import type { RenderContext } from '../types'
 import { resolveColor } from '../resolve'
-import { buildFontString, resolveContent, resolveFamilyStack, wrapText, fillFittedText } from '../text'
+import { layoutTextLayer } from '../text'
 
 export function drawTextLayer(
   ctx: CanvasRenderingContext2D,
@@ -9,36 +9,23 @@ export function drawTextLayer(
   tMs: number,
   rctx: RenderContext,
 ): void {
-  const content = resolveContent(layer.content, rctx, tMs)
-  if (!content) return
+  // The same layout a shape's `sizeTo` measures, so the card and the text
+  // inside it cannot disagree about how many lines there are.
+  const layout = layoutTextLayer(ctx, layer, rctx, tMs)
+  if (!layout) return
 
-  const fontStr = buildFontString(layer.font, rctx)
-  ctx.font = fontStr
+  // layoutTextLayer has already set the font it measured with.
   ctx.textAlign = layer.align ?? 'center'
   ctx.textBaseline = 'middle'
+  ctx.fillStyle = resolveColor(layer.color, rctx.resolve) ?? '#ffffff'
 
-  const color = resolveColor(layer.color, rctx.resolve) ?? '#ffffff'
-  ctx.fillStyle = color
-
-  const basePx = layer.font?.size ?? 48
-  const weight = layer.font?.weight ?? (rctx.fonts[layer.font?.asset ?? '']?.weight ?? 400)
-  const family = resolveFamilyStack(layer.font?.asset, rctx)
-
-  if (layer.shrinkToFit && layer.maxWidth) {
-    fillFittedText(ctx, content, 0, 0, layer.maxWidth, basePx, weight, family, layer.minSize)
+  if (layout.lines.length === 1) {
+    ctx.fillText(layout.lines[0], 0, 0)
     return
   }
 
-  if (layer.wrap && layer.maxWidth) {
-    ctx.font = fontStr
-    const lines = wrapText((t) => ctx.measureText(t).width, content, layer.maxWidth)
-    const lineH = layer.lineHeight ?? basePx * 1.2
-    const totalH = lines.length * lineH
-    lines.forEach((line, i) => {
-      ctx.fillText(line, 0, -totalH / 2 + lineH / 2 + i * lineH)
-    })
-    return
-  }
-
-  ctx.fillText(content, 0, 0)
+  const top = -layout.height / 2 + layout.lineHeight / 2
+  layout.lines.forEach((line, i) => {
+    ctx.fillText(line, 0, top + i * layout.lineHeight)
+  })
 }
