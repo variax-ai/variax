@@ -378,7 +378,8 @@
         "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
         "startMs": { "type": "number", "minimum": 0 },
         "endMs": { "type": "number", "minimum": 0 },
-        "persist": { "type": "boolean" }
+        "persist": { "type": "boolean" },
+        "visibleIf": { "$ref": "#/definitions/Condition" }
       },
       "additionalProperties": false
     },
@@ -407,7 +408,8 @@
         "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
         "startMs": { "type": "number", "minimum": 0 },
         "endMs": { "type": "number", "minimum": 0 },
-        "persist": { "type": "boolean" }
+        "persist": { "type": "boolean" },
+        "visibleIf": { "$ref": "#/definitions/Condition" }
       },
       "additionalProperties": false
     },
@@ -423,7 +425,8 @@
         "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
         "startMs": { "type": "number", "minimum": 0 },
         "endMs": { "type": "number", "minimum": 0 },
-        "persist": { "type": "boolean" }
+        "persist": { "type": "boolean" },
+        "visibleIf": { "$ref": "#/definitions/Condition" }
       },
       "additionalProperties": false
     },
@@ -442,7 +445,8 @@
         "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
         "startMs": { "type": "number", "minimum": 0 },
         "endMs": { "type": "number", "minimum": 0 },
-        "persist": { "type": "boolean" }
+        "persist": { "type": "boolean" },
+        "visibleIf": { "$ref": "#/definitions/Condition" }
       },
       "additionalProperties": false
     },
@@ -461,7 +465,8 @@
         "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
         "startMs": { "type": "number", "minimum": 0 },
         "endMs": { "type": "number", "minimum": 0 },
-        "persist": { "type": "boolean" }
+        "persist": { "type": "boolean" },
+        "visibleIf": { "$ref": "#/definitions/Condition" }
       },
       "additionalProperties": false
     },
@@ -478,7 +483,8 @@
         "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
         "startMs": { "type": "number", "minimum": 0 },
         "endMs": { "type": "number", "minimum": 0 },
-        "persist": { "type": "boolean" }
+        "persist": { "type": "boolean" },
+        "visibleIf": { "$ref": "#/definitions/Condition" }
       },
       "additionalProperties": false
     },
@@ -504,7 +510,8 @@
         "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
         "startMs": { "type": "number", "minimum": 0 },
         "endMs": { "type": "number", "minimum": 0 },
-        "persist": { "type": "boolean" }
+        "persist": { "type": "boolean" },
+        "visibleIf": { "$ref": "#/definitions/Condition" }
       },
       "additionalProperties": false
     },
@@ -547,7 +554,8 @@
         "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
         "startMs": { "type": "number", "minimum": 0 },
         "endMs": { "type": "number", "minimum": 0 },
-        "persist": { "type": "boolean" }
+        "persist": { "type": "boolean" },
+        "visibleIf": { "$ref": "#/definitions/Condition" }
       },
       "additionalProperties": false
     },
@@ -568,7 +576,8 @@
         "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
         "startMs": { "type": "number", "minimum": 0 },
         "endMs": { "type": "number", "minimum": 0 },
-        "persist": { "type": "boolean" }
+        "persist": { "type": "boolean" },
+        "visibleIf": { "$ref": "#/definitions/Condition" }
       },
       "additionalProperties": false
     },
@@ -596,7 +605,8 @@
         "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
         "startMs": { "type": "number", "minimum": 0 },
         "endMs": { "type": "number", "minimum": 0 },
-        "persist": { "type": "boolean" }
+        "persist": { "type": "boolean" },
+        "visibleIf": { "$ref": "#/definitions/Condition" }
       },
       "additionalProperties": false
     },
@@ -621,7 +631,8 @@
         "effects": { "type": "array", "items": { "$ref": "#/definitions/Effect" } },
         "startMs": { "type": "number", "minimum": 0 },
         "endMs": { "type": "number", "minimum": 0 },
-        "persist": { "type": "boolean" }
+        "persist": { "type": "boolean" },
+        "visibleIf": { "$ref": "#/definitions/Condition" }
       },
       "additionalProperties": false
     },
@@ -700,6 +711,38 @@
       "additionalProperties": {
         "$ref": "#/definitions/VarDefinition"
       }
+    },
+
+    "Condition": {
+      "description": "A predicate over `vars` deciding whether a layer is drawn at all — the one place document structure, rather than a value, may depend on a runtime fact. A layer that fails its condition is skipped entirely, and nothing moves to fill the gap: layout stays the author's job, so a document with an optional layer positions the layers around it for both cases. The string form names a var, with or without the `$var:` prefix, and holds when the value is truthy: `false`, `0`, `NaN`, the empty string, the strings `\"false\"` and `\"0\"`, and an unset var are all false, everything else true. The object form compares instead, as strings, so `1` and `\"1\"` match — an unset var never matches.",
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "required": ["var"],
+          "properties": {
+            "var": {
+              "description": "The name of a var, without the `$var:` prefix.",
+              "type": "string"
+            },
+            "equals": {
+              "description": "Holds when the var equals this value. Mutually exclusive with `in`.",
+              "type": ["string", "number", "boolean"]
+            },
+            "in": {
+              "description": "Holds when the var equals any of these values. Mutually exclusive with `equals`.",
+              "type": "array",
+              "items": { "type": ["string", "number", "boolean"] }
+            },
+            "not": {
+              "description": "Inverts the whole test, including the truthiness form.",
+              "type": "boolean"
+            }
+          },
+          "not": { "required": ["equals", "in"] },
+          "additionalProperties": false
+        }
+      ]
     },
 
     "ImageAsset": {

@@ -2,6 +2,7 @@ import type { Layer } from '@variax-ai/video-schema'
 import type { RenderContext } from '../types'
 import { applyTransform } from '../transform'
 import { applyPreDrawEffects } from '../effects'
+import { layerIsVisible } from '../condition'
 import { drawShapeLayer } from './shape'
 import { drawTextLayer } from './text'
 import { drawImageLayer } from './image'
@@ -20,8 +21,7 @@ export function drawLayer(
   tMs: number,
   rctx: RenderContext,
 ): void {
-  if (layer.startMs !== undefined && tMs < layer.startMs) return
-  if (layer.endMs !== undefined && tMs >= layer.endMs) return
+  if (!layerIsVisible(layer, tMs, rctx.resolve)) return
 
   ctx.save()
 

@@ -12,6 +12,7 @@ import {
   subtreeEffectExtent,
 } from '../bounds'
 import { drawSmudgedImage, resolveDownscaleBlur } from './image'
+import { layerIsVisible } from '../condition'
 
 /**
  * Slack around the crop. Bounds are geometric, and a rasteriser's antialiased
@@ -20,13 +21,6 @@ import { drawSmudgedImage, resolveDownscaleBlur } from './image'
  * it.
  */
 const GUARD_PX = 2
-
-/** Mirrors drawLayer's own gate, so an invisible source costs no canvases. */
-function isVisible(layer: Layer, tMs: number): boolean {
-  if (layer.startMs !== undefined && tMs < layer.startMs) return false
-  if (layer.endMs !== undefined && tMs >= layer.endMs) return false
-  return true
-}
 
 export function drawCompositeMaskLayer(
   ctx: CanvasRenderingContext2D,
@@ -46,7 +40,8 @@ export function drawCompositeMaskLayer(
     if (!image) return
   } else if (typeof layer.source === 'object' && layer.source !== null) {
     sourceLayer = layer.source
-    if (!isVisible(sourceLayer, tMs)) return
+    // Mirrors drawLayer's own gate, so an invisible source costs no canvases.
+    if (!layerIsVisible(sourceLayer, tMs, rctx.resolve)) return
   } else {
     // Malformed document. Every other guard here no-ops rather than throwing,
     // and one bad layer must not take the whole frame down with it.

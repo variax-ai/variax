@@ -43,6 +43,26 @@ A declarative JSON format for motion-graphics videos, inspired by [Lottie](https
 }
 ```
 
+### Conditional layers
+
+`vars` parameterise values; `visibleIf` parameterises which layers exist. A
+layer whose condition does not hold is skipped entirely — the case that
+otherwise forces the host to build the document at render time:
+
+```json
+{ "type": "image", "asset": "thumbnail", "visibleIf": "$var:hasImage" }
+{ "type": "text",  "content": "No photo", "visibleIf": { "var": "hasImage", "not": true } }
+{ "type": "shape", "shape": "rect", "visibleIf": { "var": "tier", "in": ["gold", "platinum"] } }
+```
+
+The string form is truthiness — `false`, `0`, `NaN`, `""`, the strings
+`"false"` and `"0"`, and an unset var are all false. The object form compares
+instead, as strings, so a var that arrives as `"3"` still matches `3`.
+
+Nothing moves to fill the gap: a hidden layer leaves a hole, and layout stays
+the author's job. A document with an optional layer positions the layers around
+it for both cases, usually by giving each variant its own `visibleIf`.
+
 ### Using the types
 
 **TypeScript:**
