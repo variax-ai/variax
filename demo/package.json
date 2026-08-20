@@ -10,8 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@variax-ai/video-renderer": "0.0.1",
-    "@variax-ai/video-schema": "0.0.1"
+    "@variax-ai/video-renderer": "0.0.2",
+    "@variax-ai/video-schema": "0.0.2"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
