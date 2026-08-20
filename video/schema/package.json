@@ -2,6 +2,15 @@
   "name": "@variax-ai/video-schema",
   "version": "0.0.2",
   "description": "TypeScript type definitions for the Variax video schema",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/variax-ai/variax.git",
+    "directory": "video/schema"
+  },
+  "homepage": "https://github.com/variax-ai/variax/tree/main/video/schema#readme",
+  "bugs": {
+    "url": "https://github.com/variax-ai/variax/issues"
+  },
   "type": "module",
   "main": "dist/v1.js",
   "types": "dist/v1.d.ts",

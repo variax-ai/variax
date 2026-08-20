@@ -2,6 +2,15 @@
   "name": "@variax-ai/video-renderer",
   "version": "0.0.2",
   "description": "Framework-agnostic Canvas2D renderer for Variax video documents",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/variax-ai/variax.git",
+    "directory": "video/renderer"
+  },
+  "homepage": "https://github.com/variax-ai/variax/tree/main/video/renderer#readme",
+  "bugs": {
+    "url": "https://github.com/variax-ai/variax/issues"
+  },
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",

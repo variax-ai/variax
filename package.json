@@ -2,6 +2,10 @@
   "name": "variax",
   "private": true,
   "version": "0.0.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/variax-ai/variax.git"
+  },
   "type": "module",
   "workspaces": [
     "video/*",
