@@ -2,7 +2,7 @@ import type { VideoDocument } from '@variax-ai/video-schema'
 import type { FrameDrawer, RenderContext, RendererOptions } from './types'
 import { drawFrame } from './scene'
 import { drawLayer as drawLayerImpl } from './layers/index'
-import { buildFamilyStack } from './text'
+import { buildFontRegistry } from './fonts'
 import type { Layer } from '@variax-ai/video-schema'
 
 export type {
@@ -16,24 +16,17 @@ export type {
 
 export type { VideoDocument } from '@variax-ai/video-schema'
 
+export { requiredFonts } from './fonts'
+export type { RequiredFont } from './fonts'
+
 export function createDocumentDrawer(
   doc: VideoDocument,
   options: RendererOptions,
 ): FrameDrawer {
-  const fonts: RenderContext['fonts'] = {}
-  if (doc.assets) {
-    for (const [id, asset] of Object.entries(doc.assets)) {
-      if (asset.type === 'font') {
-        // The stack is fixed for the document's lifetime, so it is built here
-        // rather than rebuilt on every text draw of every frame.
-        fonts[id] = {
-          family: asset.family,
-          weight: asset.weight ?? 400,
-          stack: buildFamilyStack(asset.family, asset.fallback),
-        }
-      }
-    }
-  }
+  // The renderer does not load faces: this only records what a text layer that
+  // names an asset should be drawn with. Hosts preload the families themselves,
+  // from `requiredFonts(doc)`.
+  const fonts = buildFontRegistry(doc)
 
   const rctx: RenderContext = {
     width: doc.width,

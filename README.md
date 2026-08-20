@@ -73,6 +73,31 @@ const drawer = createDocumentDrawer(doc, { vars: {}, images: {} });
 drawer(canvasCtx, timeMs);
 ```
 
+#### Fonts
+
+The renderer never loads a typeface. A font asset's `src` is **advisory** — it
+records where the face can be obtained, and nothing fetches it. The host must
+have every declared family loaded before it draws the first frame.
+
+This failure is silent: an unloaded family falls through the asset's `fallback`
+to a generic, and the text renders in the wrong face at the wrong metrics with
+no error. Preload from `requiredFonts(doc)`, which lists what a document
+declares along with the weight and CSS stack the renderer will ask for:
+
+```typescript
+import { requiredFonts } from "@variax-ai/video-renderer";
+
+await Promise.all(
+  requiredFonts(doc).map(async (font) => {
+    const face = new FontFace(font.family, `url(${font.src})`, { weight: String(font.weight) });
+    document.fonts.add(await face.load());
+  }),
+);
+```
+
+Give each font asset a `fallback` naming a face you know is present, so a miss
+degrades to something chosen rather than to bare `sans-serif`.
+
 ## Development
 
 ```sh
