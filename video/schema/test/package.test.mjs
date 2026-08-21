@@ -1,6 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
@@ -26,8 +27,16 @@ test('the subpath resolves to a readable draft-07 schema', async () => {
   assert.deepEqual(schema.properties.version, { type: 'integer', const: 1 })
 })
 
-test('the published schema is the one the types were generated from', () => {
-  const fromRepo = readFileSync(new URL('../json/v1.json', import.meta.url), 'utf8')
-  const fromExport = readFileSync(fileURLToPath(import.meta.resolve('@variax-ai/video-schema/json/v1.json')), 'utf8')
-  assert.equal(fromExport, fromRepo)
+// In the workspace, the export path and the repo path are the same file — the
+// node_modules entry is a symlink — so reading both proves nothing about what
+// ships. Ask npm what the tarball would contain instead.
+test('the schema is in the tarball npm would publish', () => {
+  const packageDir = fileURLToPath(new URL('..', import.meta.url))
+  const [packed] = JSON.parse(
+    execFileSync('npm', ['pack', '--dry-run', '--json'], { cwd: packageDir, encoding: 'utf8' }),
+  )
+  const paths = packed.files.map(f => f.path)
+  assert.ok(paths.includes('json/v1.json'), `json/v1.json missing from the tarball: ${paths.join(', ')}`)
+  assert.ok(paths.includes('dist/v1.d.ts'), 'the types are missing from the tarball')
+  assert.ok(packed.files.find(f => f.path === 'json/v1.json').size > 0, 'the packed schema is empty')
 })
