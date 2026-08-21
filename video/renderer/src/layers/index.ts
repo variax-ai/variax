@@ -21,6 +21,11 @@ export function drawLayer(
   tMs: number,
   rctx: RenderContext,
 ): void {
+  // `use` layers are substituted when the document is loaded. One reaching a
+  // draw means the def was missing, and an unresolvable reference draws
+  // nothing rather than taking the frame down.
+  if (layer.type === 'use') return
+
   if (!layerIsVisible(layer, tMs, rctx.resolve)) return
 
   ctx.save()

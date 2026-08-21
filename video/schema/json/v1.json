@@ -38,6 +38,9 @@
     "tokens": {
       "$ref": "#/definitions/Tokens"
     },
+    "defs": {
+      "$ref": "#/definitions/Defs"
+    },
     "scenes": {
       "type": "array",
       "items": {
@@ -126,6 +129,7 @@
 
     "AnimatedNumber": {
       "oneOf": [
+        { "$ref": "#/definitions/DefRef" },
         { "type": "number" },
         {
           "type": "object",
@@ -145,6 +149,7 @@
 
     "AnimatedPoint": {
       "oneOf": [
+        { "$ref": "#/definitions/DefRef" },
         { "$ref": "#/definitions/Point" },
         {
           "type": "object",
@@ -174,6 +179,7 @@
 
     "AnimatedScale": {
       "oneOf": [
+        { "$ref": "#/definitions/DefRef" },
         { "type": "number" },
         { "$ref": "#/definitions/Point" },
         {
@@ -639,6 +645,7 @@
 
     "Layer": {
       "oneOf": [
+        { "$ref": "#/definitions/UseLayer" },
         { "$ref": "#/definitions/ShapeLayer" },
         { "$ref": "#/definitions/TextLayer" },
         { "$ref": "#/definitions/ImageLayer" },
@@ -814,6 +821,45 @@
       "additionalProperties": {
         "type": "string"
       }
+    },
+
+    "DefRef": {
+      "description": "A reference to an entry in the document's `defs`, written `$def:name`. Resolved once when the document is loaded, so every reference to one def shares a single value rather than a copy of it — which is the point: JSON has no references, and anything reused is otherwise written out verbatim on the wire.",
+      "type": "string",
+      "pattern": "^\\$def:[A-Za-z0-9_.-]+$"
+    },
+
+    "Def": {
+      "description": "A named value a document can reuse. References to it must be to the same expression, not a copy — a path sampled by several layers has to stay in step with the thing casting it.",
+      "anyOf": [
+        { "$ref": "#/definitions/AnimatedPoint" },
+        { "$ref": "#/definitions/AnimatedNumber" },
+        { "$ref": "#/definitions/AnimatedScale" },
+        { "$ref": "#/definitions/Layer" },
+        { "type": "array", "items": { "$ref": "#/definitions/Layer" } }
+      ]
+    },
+
+    "Defs": {
+      "description": "Document-level definitions, referenced as `$def:name`. A def may reference another; a cycle is an error.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/Def"
+      }
+    },
+
+    "UseLayer": {
+      "description": "Draws a layer, or a whole layer array, defined once in `defs`. Substitution only: the definition is spliced in where the `use` stands, keeping the order of the layers around it.",
+      "type": "object",
+      "required": ["type", "def"],
+      "properties": {
+        "type": { "type": "string", "const": "use" },
+        "def": {
+          "description": "The name of a def, with or without the `$def:` prefix.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

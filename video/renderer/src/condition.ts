@@ -58,6 +58,9 @@ export function conditionHolds(condition: Condition | undefined, resolve: Resolv
 
 /** Whether a layer is drawn at all: its time window and its condition. */
 export function layerIsVisible(layer: Layer, tMs: number, resolve: ResolveContext): boolean {
+  // A `use` that survived load-time substitution names a def that does not
+  // exist. It has no window and no condition of its own, and it draws nothing.
+  if (layer.type === 'use') return false
   if (layer.startMs !== undefined && tMs < layer.startMs) return false
   if (layer.endMs !== undefined && tMs >= layer.endMs) return false
   return conditionHolds(layer.visibleIf, resolve)

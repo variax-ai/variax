@@ -179,6 +179,9 @@ export function layerBounds(layer: Layer, tMs: number, resolve: ResolveContext):
   // maximally useful, extent. A second copy of this rule would size buffers for
   // layers the renderer no longer draws.
   if (!layerIsVisible(layer, tMs, resolve)) return EMPTY
+  // Unreachable — layerIsVisible has already rejected it — but a `use` carries
+  // none of the properties read below, so the narrowing has to be explicit.
+  if (layer.type === 'use') return EMPTY
 
   const local = localBounds(layer, tMs, resolve)
   if (!local) return null

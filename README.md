@@ -63,6 +63,49 @@ Nothing moves to fill the gap: a hidden layer leaves a hole, and layout stays
 the author's job. A document with an optional layer positions the layers around
 it for both cases, usually by giving each variant its own `visibleIf`.
 
+### Reusing a value
+
+JSON has no references, so anything a document reuses is written out verbatim —
+and some values must be reused rather than repeated: three trails sampling a
+path and the hand casting it have to be the *same* expression, or they drift
+apart. `defs` names a value once; `$def:name` refers to it:
+
+```json
+{
+  "defs": {
+    "fingertip": { "keyframes": [{ "t": 0, "value": [130, 450] }, "…"] }
+  },
+  "scenes": [{
+    "id": "smudge", "startMs": 0, "endMs": 6200,
+    "layers": [
+      { "type": "trail", "source": "$def:fingertip", "windowMs": 500, "samples": 10, "radius": 78 },
+      { "type": "group", "transform": { "position": "$def:fingertip" }, "children": ["…"] }
+    ]
+  }]
+}
+```
+
+A def can hold an animated value, a layer, or an array of layers. A layer def is
+drawn with a `use` layer, which is pure substitution — anywhere a layer is
+accepted, including a `compositeMask`'s source and a `repeater`'s child. In a
+layer list, a def holding several layers splices in, keeping the order of the
+layers around it; in a single-layer slot, which has nothing to splice into, it
+draws nothing:
+
+```json
+{ "type": "use", "def": "$def:cardChrome" }
+```
+
+References resolve once, when the document is loaded, so every reference to one
+def ends up pointing at one value rather than at a copy of it. A def may
+reference another; a cycle throws. A reference to a name that does not exist is
+left alone — an unresolvable animated value evaluates to zero, and an
+unresolvable `use` draws nothing.
+
+Baked keyframes are the usual reason a document is large, and precision is wire
+cost: `{"t":3427.6785714285716,"value":461.9458212263177}` is 49 bytes, and
+rounding to whole milliseconds and one decimal place costs nothing visible.
+
 ### Using the types
 
 **TypeScript:**

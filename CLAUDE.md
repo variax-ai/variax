@@ -59,6 +59,7 @@ VideoDocument
 ├── vars        — runtime data bindings ("$var:name" refs)
 ├── assets      — images, fonts (keyed by id)
 ├── tokens      — named color/style constants ("$token:name" refs)
+├── defs        — reusable values/layers ("$def:name" refs, resolved at load)
 └── scenes[]    — ordered timeline segments
     ├── id, startMs, endMs, background?
     └── layers[]  — composited bottom-to-top
@@ -79,6 +80,7 @@ VideoDocument
 | `trail` | motion history: circles sampled along an animated point's own past path |
 | `dataViz` | data-driven visualization (tree, etc.) |
 | `statBeat` | animated counter(s) with labels |
+| `use` | substitutes a layer (or layer array) from `defs` |
 
 ### Key design principles
 
@@ -93,6 +95,8 @@ VideoDocument
 
 - `"$var:name"` — resolves against `vars` map at bind time
 - `"$token:name"` — resolves against `tokens` map
+- `"$def:name"` — resolves against `defs` when the document is loaded, so every
+  reference shares one value; `use` layers substitute a layer def the same way
 - `"#componentId"` — reusable component reference
 - `"$computed:name"` — renderer-calculated value
 
