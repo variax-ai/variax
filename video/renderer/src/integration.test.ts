@@ -406,3 +406,83 @@ describe('renderer constraints', () => {
     expect(sizes).toEqual([[20, 20]])
   })
 })
+
+/**
+ * The four document-level features landed separately; this is the document that
+ * uses all of them at once — a card defined once in `defs`, placed with `use`,
+ * sized to text that comes from a var, and shown or hidden by a condition on
+ * the group that holds it.
+ */
+describe('defs, use, visibleIf and sizeTo together', () => {
+  const doc = makeDoc({
+    defs: {
+      card: [
+        {
+          type: 'shape',
+          shape: 'roundedRect',
+          radius: 40,
+          fill: '#111111',
+          position: [960, 540],
+          sizeTo: { layer: 'message', padding: [40, 20], minWidth: 100 },
+        },
+        {
+          type: 'text',
+          id: 'message',
+          content: '$var:message',
+          font: { size: 100 },
+          wrap: true,
+          maxWidth: 100,
+          position: [960, 540],
+        },
+      ],
+    },
+    scenes: [
+      {
+        id: 's',
+        startMs: 0,
+        endMs: 1000,
+        layers: [
+          // `use` is substitution and carries nothing of its own, so the
+          // condition goes on a group around it.
+          { type: 'group', visibleIf: '$var:showCard', children: [{ type: 'use', def: '$def:card' }] },
+          { type: 'shape', shape: 'rect', size: [10, 10], fill: '#fff', position: [10, 10] },
+        ],
+      },
+    ],
+  } as never)
+
+  function drawWith(vars: Record<string, string | number | boolean>) {
+    const ctx = createStubCtx()
+    createDocumentDrawer(doc, { vars, images: {} })(ctx, 0)
+    return ctx
+  }
+
+  /** Where the rounded rect's path starts: `x + radius` of the measured box. */
+  function cardLeft(ctx: ReturnType<typeof createStubCtx>): number {
+    return Math.abs((getCalls(ctx, 'moveTo')[0].args as number[])[0])
+  }
+
+  it('sizes the spliced card to the text the vars supply', () => {
+    // 'hello there' measures 110 against a maxWidth of 100, so it wraps to two
+    // 50-wide lines; the box is 50 + 40 of padding a side.
+    const ctx = drawWith({ showCard: true, message: 'hello there' })
+    expect(getCalls(ctx, 'fillText').map(c => c.args[0])).toEqual(['hello', 'there'])
+    expect(cardLeft(ctx)).toBe(25)
+    // The sibling layer is untouched by any of it.
+    expect(getCalls(ctx, 'rect')[0].args).toEqual([-5, -5, 10, 10])
+  })
+
+  it('grows the card with a longer message', () => {
+    expect(cardLeft(drawWith({ showCard: true, message: 'hi' }))).toBeLessThan(
+      cardLeft(drawWith({ showCard: true, message: 'hello there' })),
+    )
+  })
+
+  it('drops the whole spliced card when the condition does not hold', () => {
+    const ctx = drawWith({ showCard: false, message: 'hello there' })
+    expect(getCalls(ctx, 'arcTo')).toHaveLength(0)
+    expect(getCalls(ctx, 'fillText')).toHaveLength(0)
+    // The sibling still draws where it always did: nothing reflows.
+    expect(getCalls(ctx, 'rect')[0].args).toEqual([-5, -5, 10, 10])
+  })
+})

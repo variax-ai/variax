@@ -96,6 +96,14 @@ draws nothing:
 { "type": "use", "def": "$def:cardChrome" }
 ```
 
+A `use` carries nothing of its own — no transform, no time window, no
+`visibleIf` — because it is replaced by what it names. Put a `group` around it
+when the copy needs any of those:
+
+```json
+{ "type": "group", "visibleIf": "$var:showCard", "children": [{ "type": "use", "def": "$def:card" }] }
+```
+
 References resolve once, when the document is loaded, so every reference to one
 def ends up pointing at one value rather than at a copy of it. A def may
 reference another; a cycle throws. A reference to a name that does not exist is
@@ -105,6 +113,37 @@ unresolvable `use` draws nothing.
 Baked keyframes are the usual reason a document is large, and precision is wire
 cost: `{"t":3427.6785714285716,"value":461.9458212263177}` is 49 bytes, and
 rounding to whole milliseconds and one decimal place costs nothing visible.
+
+### Sizing a shape to its text
+
+A card whose height comes from user-supplied text used to be unbuildable ahead
+of time: only the renderer knows how the text wraps, so the host had to measure
+it and pass the number in — duplicating the renderer's own wrapping, with its
+own copy of the font string, to size a rectangle. `sizeTo` moves that back into
+the document:
+
+```json
+{
+  "type": "shape", "shape": "roundedRect", "radius": 40, "fill": "$token:card",
+  "position": [540, 900],
+  "sizeTo": { "layer": "message", "padding": [130, 80], "minHeight": 260 }
+},
+{
+  "type": "text", "id": "message", "content": "$var:message",
+  "font": { "asset": "body", "size": 108 },
+  "wrap": true, "maxWidth": 820, "lineHeight": 128,
+  "position": [540, 900]
+}
+```
+
+The shape's box becomes the text's laid-out extent plus `padding` on each side,
+centred on the shape's own origin — give the text the same `position` and they
+line up. `minWidth` and `minHeight` keep a card from collapsing around a short
+message. The target is named by `id`, which any layer may now declare, and it
+need not be a sibling.
+
+A shape whose `sizeTo` cannot be measured — no such id, not a text layer, or
+text that resolves to nothing — falls back to its own `size`.
 
 ### Using the types
 

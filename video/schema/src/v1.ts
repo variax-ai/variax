@@ -110,6 +110,10 @@ export type Condition =
  * A single JSON value a var can hold. Spelled as an `anyOf` of one-type schemas rather than a `type` array, so a validator running in strict mode compiles it without configuration.
  */
 export type Scalar = string | number | boolean;
+/**
+ * Author-chosen identifier for a layer, unique within the document. Only needed by things that refer to a layer, such as a shape's `sizeTo`.
+ */
+export type LayerId = string;
 export type Background =
   | string
   | {
@@ -223,10 +227,13 @@ export interface ShapeLayer {
   type: "shape";
   shape: "rect" | "roundedRect" | "ellipse" | "path" | "line";
   /**
+   * Fixed size, centred on the layer's origin. Ignored when `sizeTo` is given.
+   *
    * @minItems 2
    * @maxItems 2
    */
   size?: [number, number];
+  sizeTo?: SizeTo;
   radius?: number;
   fill?: string;
   stroke?: Stroke;
@@ -239,6 +246,22 @@ export interface ShapeLayer {
   endMs?: number;
   persist?: boolean;
   visibleIf?: Condition;
+  id?: LayerId;
+}
+/**
+ * Derives a shape's box from the text layer it backs, so a card grows with the message inside it. The renderer is the only thing that knows how the text wraps, and sizing it here is what lets a document whose text comes from a var be authored ahead of time instead of built at render time. The box is the text's laid-out extent plus `padding` on each side, centred on the shape's own origin — position the text at the same point to have them line up.
+ */
+export interface SizeTo {
+  /**
+   * The `id` of a text layer, anywhere in the document.
+   */
+  layer: string;
+  /**
+   * Added on each side, as [x, y]. A single number pads both axes equally.
+   */
+  padding?: number | Point;
+  minWidth?: number;
+  minHeight?: number;
 }
 export interface Stroke {
   color: string;
@@ -291,6 +314,7 @@ export interface TextLayer {
   endMs?: number;
   persist?: boolean;
   visibleIf?: Condition;
+  id?: LayerId;
 }
 export interface TemplateString {
   template: string;
@@ -313,6 +337,7 @@ export interface ImageLayer {
   endMs?: number;
   persist?: boolean;
   visibleIf?: Condition;
+  id?: LayerId;
 }
 export interface Frame {
   x: number;
@@ -331,6 +356,7 @@ export interface GroupLayer {
   endMs?: number;
   persist?: boolean;
   visibleIf?: Condition;
+  id?: LayerId;
 }
 export interface RefLayer {
   type: "ref";
@@ -347,6 +373,7 @@ export interface RefLayer {
   endMs?: number;
   persist?: boolean;
   visibleIf?: Condition;
+  id?: LayerId;
 }
 export interface RepeaterLayer {
   type: "repeater";
@@ -359,6 +386,7 @@ export interface RepeaterLayer {
   endMs?: number;
   persist?: boolean;
   visibleIf?: Condition;
+  id?: LayerId;
 }
 export interface CaptionSequenceLayer {
   type: "captionSequence";
@@ -379,6 +407,7 @@ export interface CaptionSequenceLayer {
   endMs?: number;
   persist?: boolean;
   visibleIf?: Condition;
+  id?: LayerId;
 }
 export interface CaptionEntry {
   t: number;
@@ -406,6 +435,7 @@ export interface CompositeMaskLayer {
   endMs?: number;
   persist?: boolean;
   visibleIf?: Condition;
+  id?: LayerId;
 }
 /**
  * Motion history: samples `source` at past times and unions a circle per sample, radius shrinking with age. Emits vector geometry only (no imagery), which is what makes it usable as a compositeMask mask. `source` is the moving point whose path is sampled — it must be declarative so the renderer can re-evaluate it at past times, and is interpreted in absolute document coordinates. `radius` is the radius of the freshest sample. `stroke` draws a polyline through the sample centres with round caps and joins. Samples older than the layer's own `startMs` are dropped.
@@ -441,6 +471,7 @@ export interface TrailLayer {
   endMs?: number;
   persist?: boolean;
   visibleIf?: Condition;
+  id?: LayerId;
 }
 export interface DataVizLayer {
   type: "dataViz";
@@ -466,6 +497,7 @@ export interface DataVizLayer {
   endMs?: number;
   persist?: boolean;
   visibleIf?: Condition;
+  id?: LayerId;
 }
 export interface StatBeatLayer {
   type: "statBeat";
@@ -485,6 +517,7 @@ export interface StatBeatLayer {
   endMs?: number;
   persist?: boolean;
   visibleIf?: Condition;
+  id?: LayerId;
 }
 export interface StatBeatEntry {
   value: number | string;

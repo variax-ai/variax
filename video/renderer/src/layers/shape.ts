@@ -1,6 +1,7 @@
-import type { ShapeLayer } from '@variax-ai/video-schema'
+import type { ShapeLayer, SizeTo } from '@variax-ai/video-schema'
 import type { RenderContext } from '../types'
 import { resolveColor } from '../resolve'
+import { layoutTextLayer, measureLayoutWidth } from '../text'
 
 function roundRectPath(
   ctx: CanvasRenderingContext2D,
@@ -19,13 +20,53 @@ function roundRectPath(
   ctx.closePath()
 }
 
+/**
+ * The box a `sizeTo` asks for: the text's laid-out extent plus padding on each
+ * side, floored by any minimum.
+ *
+ * Returns null when the target is missing, is not a text layer, or resolves to
+ * no text at all. The shape then falls back to its own `size` — a card that
+ * cannot measure its message is better as the author's fixed box than as
+ * nothing, and better than a box sized to text that is not there.
+ */
+function measureSizeTo(
+  ctx: CanvasRenderingContext2D,
+  sizeTo: SizeTo,
+  tMs: number,
+  rctx: RenderContext,
+): [number, number] | null {
+  const target = rctx.layersById.get(sizeTo.layer)
+  if (!target || target.type !== 'text') return null
+
+  // Laying the text out sets the font; the shape must not inherit it.
+  ctx.save()
+  let width: number
+  let height: number
+  try {
+    const layout = layoutTextLayer(ctx, target, rctx, tMs)
+    if (!layout) return null
+    width = measureLayoutWidth(ctx, layout)
+    height = layout.height
+  } finally {
+    ctx.restore()
+  }
+
+  const padding = sizeTo.padding ?? 0
+  const [padX, padY] = typeof padding === 'number' ? [padding, padding] : padding
+  return [
+    Math.max(sizeTo.minWidth ?? 0, width + padX * 2),
+    Math.max(sizeTo.minHeight ?? 0, height + padY * 2),
+  ]
+}
+
 export function drawShapeLayer(
   ctx: CanvasRenderingContext2D,
   layer: ShapeLayer,
-  _tMs: number,
+  tMs: number,
   rctx: RenderContext,
 ): void {
-  const [w, h] = layer.size ?? [0, 0]
+  const measured = layer.sizeTo ? measureSizeTo(ctx, layer.sizeTo, tMs, rctx) : null
+  const [w, h] = measured ?? layer.size ?? [0, 0]
   const fill = resolveColor(layer.fill, rctx.resolve)
 
   if (layer.shadow) {
