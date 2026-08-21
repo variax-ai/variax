@@ -65,6 +65,20 @@ describe('conditionHolds', () => {
     expect(holds({ var: 'hasImage' }, { hasImage: 0 })).toBe(false)
   })
 
+  it('does not read a var name off Object.prototype', () => {
+    // `'constructor' in vars` is true for every document; a ref that landed on
+    // the prototype would resolve to a function, which is truthy and would
+    // draw a layer whose var was never set.
+    expect(holds('$var:constructor', {})).toBe(false)
+    expect(holds('$var:toString', {})).toBe(false)
+    expect(holds({ var: 'toString', equals: 'x' }, {})).toBe(false)
+    expect(holds({ var: 'valueOf', not: true }, {})).toBe(true)
+  })
+
+  it('still reads a var the document actually set under such a name', () => {
+    expect(holds('$var:constructor', { constructor: true })).toBe(true)
+  })
+
   it('hides rather than shows when the predicate is malformed', () => {
     expect(holds({} as Condition, { anything: true })).toBe(false)
     expect(holds(42 as unknown as Condition, {})).toBe(false)

@@ -57,3 +57,13 @@ describe('resolveNumberVar', () => {
     expect(resolveNumberVar('$var:message', ctx)).toBe(0)
   })
 })
+
+describe('prototype names are not refs', () => {
+  it('resolves a $var: or $token: ref that lands on Object.prototype to nothing', () => {
+    const empty: ResolveContext = { vars: {}, tokens: {} }
+    expect(resolveString('$var:toString', empty)).toBe('')
+    expect(resolveString('$token:constructor', empty)).toBe('')
+    expect(resolveColor('$token:hasOwnProperty', empty)).toBeUndefined()
+    expect(resolveNumberVar('$var:valueOf', empty)).toBe(0)
+  })
+})

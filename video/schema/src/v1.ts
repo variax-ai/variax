@@ -98,12 +98,16 @@ export type Condition =
       /**
        * Holds when the var equals any of these values. Mutually exclusive with `equals`.
        */
-      in?: (string | number | boolean)[];
+      in?: Scalar[];
       /**
        * Inverts the whole test, including the truthiness form.
        */
       not?: boolean;
     };
+/**
+ * A single JSON value a var can hold. Spelled as an `anyOf` of one-type schemas rather than a `type` array, so a validator running in strict mode compiles it without configuration.
+ */
+export type Scalar = string | number | boolean;
 
 /**
  * A declarative JSON format for motion-graphics videos, inspired by the Lottie schema.

@@ -1009,6 +1009,11 @@ func (j *RepeaterLayer) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+// A single JSON value a var can hold. Spelled as an `anyOf` of one-type schemas
+// rather than a `type` array, so a validator running in strict mode compiles it
+// without configuration.
+type Scalar interface{}
+
 type Scene struct {
 	// Background corresponds to the JSON schema field "background".
 	Background Background `json:"background,omitempty,omitzero" yaml:"background,omitempty" mapstructure:"background,omitempty"`

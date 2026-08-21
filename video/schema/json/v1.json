@@ -713,6 +713,15 @@
       }
     },
 
+    "Scalar": {
+      "description": "A single JSON value a var can hold. Spelled as an `anyOf` of one-type schemas rather than a `type` array, so a validator running in strict mode compiles it without configuration.",
+      "anyOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "boolean" }
+      ]
+    },
+
     "Condition": {
       "description": "A predicate over `vars` deciding whether a layer is drawn at all — the one place document structure, rather than a value, may depend on a runtime fact. A layer that fails its condition is skipped entirely, and nothing moves to fill the gap: layout stays the author's job, so a document with an optional layer positions the layers around it for both cases. The string form names a var, with or without the `$var:` prefix, and holds when the value is truthy: `false`, `0`, `NaN`, the empty string, the strings `\"false\"` and `\"0\"`, and an unset var are all false, everything else true. The object form compares instead, as strings, so `1` and `\"1\"` match — an unset var never matches.",
       "oneOf": [
@@ -727,19 +736,23 @@
             },
             "equals": {
               "description": "Holds when the var equals this value. Mutually exclusive with `in`.",
-              "type": ["string", "number", "boolean"]
+              "$ref": "#/definitions/Scalar"
             },
             "in": {
               "description": "Holds when the var equals any of these values. Mutually exclusive with `equals`.",
               "type": "array",
-              "items": { "type": ["string", "number", "boolean"] }
+              "items": { "$ref": "#/definitions/Scalar" }
             },
             "not": {
               "description": "Inverts the whole test, including the truthiness form.",
               "type": "boolean"
             }
           },
-          "not": { "required": ["equals", "in"] },
+          "not": {
+            "description": "`equals` and `in` are two spellings of the same test, so declaring both is an error rather than a precedence question. The properties are restated here because a validator in strict mode requires every name in `required` to be described alongside it.",
+            "required": ["equals", "in"],
+            "properties": { "equals": {}, "in": {} }
+          },
           "additionalProperties": false
         }
       ]

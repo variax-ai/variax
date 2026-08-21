@@ -1,5 +1,6 @@
 import type { Condition, Layer } from '@variax-ai/video-schema'
 import type { ResolveContext } from './types'
+import { lookupVar } from './resolve'
 
 type VarValue = string | number | boolean | undefined
 
@@ -27,11 +28,6 @@ function matches(value: VarValue, expected: string | number | boolean): boolean 
   return String(value) === String(expected)
 }
 
-/** Accepts a bare var name as readily as a `$var:` reference. */
-function varName(ref: string): string {
-  return ref.startsWith('$var:') ? ref.slice(5) : ref
-}
-
 /**
  * Whether a layer's `visibleIf` holds. An absent condition always holds; one
  * that cannot be evaluated never does, so a typo'd predicate hides a layer
@@ -40,14 +36,14 @@ function varName(ref: string): string {
 export function conditionHolds(condition: Condition | undefined, resolve: ResolveContext): boolean {
   if (condition === undefined) return true
 
-  if (typeof condition === 'string') return isTruthy(resolve.vars[varName(condition)])
+  if (typeof condition === 'string') return isTruthy(lookupVar(condition, resolve))
 
   if (typeof condition !== 'object' || condition === null || typeof condition.var !== 'string') {
     // Malformed document. Nothing else in the renderer throws on one bad layer.
     return false
   }
 
-  const value = resolve.vars[varName(condition.var)]
+  const value = lookupVar(condition.var, resolve)
   let held: boolean
   if (condition.equals !== undefined) {
     held = matches(value, condition.equals)
