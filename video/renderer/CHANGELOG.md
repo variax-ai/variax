@@ -1,5 +1,71 @@
 # @variax-ai/video-renderer
 
+## 0.1.0
+
+### Minor Changes
+
+- 08485b4: Confine `compositeMask` to the mask's bounding box
+
+  `compositeMask` allocated two document-sized canvases per layer per frame and
+  composited across the whole document however small the mask was. It now derives
+  the mask's extent and crops the allocation and all three composites to it,
+  falling back to the full document when the extent is not derivable. On the
+  issue's scenario — two `trail`-masked layers on a 1080×1920 document — that is
+  26.5ms/frame down to 4.9ms/frame, ~4s off a 186-frame beat.
+
+  Antialiasing of the mask's own outline can shift by a fraction of a step on its
+  one-pixel rim, because a path's antialiasing is not invariant under a shift of
+  the surface it is drawn into. Geometry, coverage and interior pixels are
+  unchanged.
+
+- bfafeac: Add `visibleIf`, a predicate on `vars` deciding whether a layer is drawn
+
+  Every layer was unconditionally present, so a document whose shape depended on a
+  runtime fact had to be rebuilt by the host — `vars` parameterised values but not
+  the layer tree. `visibleIf` takes either a var reference, held when the value is
+  truthy, or `{ var, equals | in, not }` for a comparison, and a layer that fails
+  its condition is skipped entirely. Layout is unchanged: nothing moves to fill
+  the gap, so an author supplies both variants and conditions each.
+
+- 1da2ba3: Add `defs` and `$def:` references, so a document can name a value and reuse it
+
+  JSON has no references, so anything a document reuses was written out verbatim —
+  in the reported case a 225-keyframe path serialised four times, half the
+  document's bytes, for an expression that has to stay one expression or the
+  layers sampling it drift apart. `defs` names a value once and `$def:name` refers
+  to it; a def may hold an animated value, a layer, or an array of layers, and a
+  `use` layer substitutes a layer def in place. References resolve once when the
+  document is loaded, so four references become four pointers to one value rather
+  than four copies of it.
+
+- e0076ea: Document that `FontAsset.src` is advisory and add `requiredFonts(doc)`
+
+  The renderer never loads a typeface, and an unloaded family fails silently — the
+  canvas falls through the stack and paints in the wrong face with no error. The
+  schema now says so on `FontAsset`, the README documents the host's obligation,
+  and `requiredFonts(doc)` lists every declared face with the family, weight and
+  CSS stack the renderer will ask for, so a host can preload without duplicating
+  that logic.
+
+- 7d201fe: Add `sizeTo`, so a shape can size itself to the text it backs
+
+  A shape's `size` was a fixed `[w, h]`, so a card backing user-supplied text had
+  to be built by the host at render time: only the renderer knows how the text
+  wraps, and the host was duplicating that measurement to size a rectangle.
+  `sizeTo` names a text layer by `id` and takes its laid-out extent plus padding,
+  with optional minimums. Layers may now declare an `id`, and the renderer lays
+  text out through one shared path used by both drawing and measuring, so a card
+  and its message cannot disagree about how many lines there are.
+
+### Patch Changes
+
+- Updated dependencies [bfafeac]
+- Updated dependencies [1da2ba3]
+- Updated dependencies [e0076ea]
+- Updated dependencies [487735b]
+- Updated dependencies [7d201fe]
+  - @variax-ai/video-schema@0.1.0
+
 ## 0.0.2
 
 ### Patch Changes
