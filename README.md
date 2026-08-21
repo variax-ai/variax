@@ -61,6 +61,35 @@ go get github.com/variax-ai/variax/video/schema/go
 import schema "github.com/variax-ai/variax/video/schema/go"
 ```
 
+### Validating a document
+
+The types are the check only while documents are built by the same codebase that
+renders them. A document that arrives as JSON — from a server, a database, a
+file — is untrusted, and the renderer has no document-level answer for a
+malformed one: it is defensive per layer, which is damage control, not
+rejection.
+
+The canonical schema ships with the package, so validate against the same file
+the types were generated from rather than a vendored copy that will drift:
+
+```sh
+npm install @variax-ai/video-schema ajv
+```
+```typescript
+import Ajv from "ajv";
+import schema from "@variax-ai/video-schema/json/v1.json" with { type: "json" };
+import type { VideoDocument } from "@variax-ai/video-schema";
+
+const ajv = new Ajv();
+const validate = ajv.compile<VideoDocument>(schema);
+
+if (!validate(untrusted)) throw new Error(ajv.errorsText(validate.errors));
+// `untrusted` is a VideoDocument from here on.
+```
+
+Ajv is the consumer's choice, not a dependency of this package — the schema is
+plain draft-07 and any validator will do.
+
 ### Rendering
 
 ```sh
