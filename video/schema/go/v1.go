@@ -379,20 +379,29 @@ type Font struct {
 	Weight *float64 `json:"weight,omitempty,omitzero" yaml:"weight,omitempty" mapstructure:"weight,omitempty"`
 }
 
+// A typeface the document expects to be available. Declaring it does not load it:
+// the renderer never fetches a face, so the host must have the family loaded
+// before the first frame is drawn. An unloaded family falls through `fallback` to
+// a generic and renders in the wrong typeface with no error, so preload every font
+// asset a document declares — `requiredFonts(doc)` in @variax-ai/video-renderer
+// lists them.
 type FontAsset struct {
 	// Additional families tried after `family`, in order, forming the CSS font stack.
 	Fallback []string `json:"fallback,omitempty,omitzero" yaml:"fallback,omitempty" mapstructure:"fallback,omitempty"`
 
-	// Family corresponds to the JSON schema field "family".
+	// The CSS family name the loaded face is registered under. Must match the host's
+	// registration exactly, including case.
 	Family string `json:"family" yaml:"family" mapstructure:"family"`
 
-	// Src corresponds to the JSON schema field "src".
+	// Where the face can be obtained. Advisory only — the renderer never reads it. It
+	// is recorded so a host (or a build step) knows what to load for `family`.
 	Src string `json:"src" yaml:"src" mapstructure:"src"`
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
 
-	// Weight corresponds to the JSON schema field "weight".
+	// Default weight for text bound to this asset, used when the text layer's font
+	// declares none. Defaults to 400.
 	Weight *float64 `json:"weight,omitempty,omitzero" yaml:"weight,omitempty" mapstructure:"weight,omitempty"`
 }
 

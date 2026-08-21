@@ -116,14 +116,26 @@ export interface ImageAsset {
   type: "image";
   src: string;
 }
+/**
+ * A typeface the document expects to be available. Declaring it does not load it: the renderer never fetches a face, so the host must have the family loaded before the first frame is drawn. An unloaded family falls through `fallback` to a generic and renders in the wrong typeface with no error, so preload every font asset a document declares — `requiredFonts(doc)` in @variax-ai/video-renderer lists them.
+ */
 export interface FontAsset {
   type: "font";
+  /**
+   * The CSS family name the loaded face is registered under. Must match the host's registration exactly, including case.
+   */
   family: string;
   /**
    * Additional families tried after `family`, in order, forming the CSS font stack.
    */
   fallback?: string[];
+  /**
+   * Default weight for text bound to this asset, used when the text layer's font declares none. Defaults to 400.
+   */
   weight?: number;
+  /**
+   * Where the face can be obtained. Advisory only — the renderer never reads it. It is recorded so a host (or a build step) knows what to load for `family`.
+   */
   src: string;
 }
 export interface Tokens {
