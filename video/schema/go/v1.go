@@ -93,6 +93,9 @@ type CaptionSequenceLayer struct {
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
+
+	// VisibleIf corresponds to the JSON schema field "visibleIf".
+	VisibleIf Condition `json:"visibleIf,omitempty,omitzero" yaml:"visibleIf,omitempty" mapstructure:"visibleIf,omitempty"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -159,6 +162,9 @@ type CompositeMaskLayer struct {
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
+
+	// VisibleIf corresponds to the JSON schema field "visibleIf".
+	VisibleIf Condition `json:"visibleIf,omitempty,omitzero" yaml:"visibleIf,omitempty" mapstructure:"visibleIf,omitempty"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -194,6 +200,17 @@ func (j *CompositeMaskLayer) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+// A predicate over `vars` deciding whether a layer is drawn at all — the one place
+// document structure, rather than a value, may depend on a runtime fact. A layer
+// that fails its condition is skipped entirely, and nothing moves to fill the gap:
+// layout stays the author's job, so a document with an optional layer positions
+// the layers around it for both cases. The string form names a var, with or
+// without the `$var:` prefix, and holds when the value is truthy: `false`, `0`,
+// `NaN`, the empty string, the strings `"false"` and `"0"`, and an unset var are
+// all false, everything else true. The object form compares instead, as strings,
+// so `1` and `"1"` match — an unset var never matches.
+type Condition interface{}
+
 type DataVizLayer struct {
 	// Animation corresponds to the JSON schema field "animation".
 	Animation DataVizLayerAnimation `json:"animation,omitempty,omitzero" yaml:"animation,omitempty" mapstructure:"animation,omitempty"`
@@ -224,6 +241,9 @@ type DataVizLayer struct {
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
+
+	// VisibleIf corresponds to the JSON schema field "visibleIf".
+	VisibleIf Condition `json:"visibleIf,omitempty,omitzero" yaml:"visibleIf,omitempty" mapstructure:"visibleIf,omitempty"`
 
 	// Viz corresponds to the JSON schema field "viz".
 	Viz string `json:"viz" yaml:"viz" mapstructure:"viz"`
@@ -648,6 +668,9 @@ type GroupLayer struct {
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
+
+	// VisibleIf corresponds to the JSON schema field "visibleIf".
+	VisibleIf Condition `json:"visibleIf,omitempty,omitzero" yaml:"visibleIf,omitempty" mapstructure:"visibleIf,omitempty"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -736,6 +759,9 @@ type ImageLayer struct {
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
+
+	// VisibleIf corresponds to the JSON schema field "visibleIf".
+	VisibleIf Condition `json:"visibleIf,omitempty,omitzero" yaml:"visibleIf,omitempty" mapstructure:"visibleIf,omitempty"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -875,6 +901,9 @@ type RefLayer struct {
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
+
+	// VisibleIf corresponds to the JSON schema field "visibleIf".
+	VisibleIf Condition `json:"visibleIf,omitempty,omitzero" yaml:"visibleIf,omitempty" mapstructure:"visibleIf,omitempty"`
 }
 
 type RefLayerParams map[string]interface{}
@@ -939,6 +968,9 @@ type RepeaterLayer struct {
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
+
+	// VisibleIf corresponds to the JSON schema field "visibleIf".
+	VisibleIf Condition `json:"visibleIf,omitempty,omitzero" yaml:"visibleIf,omitempty" mapstructure:"visibleIf,omitempty"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -976,6 +1008,11 @@ func (j *RepeaterLayer) UnmarshalJSON(value []byte) error {
 	*j = RepeaterLayer(plain)
 	return nil
 }
+
+// A single JSON value a var can hold. Spelled as an `anyOf` of one-type schemas
+// rather than a `type` array, so a validator running in strict mode compiles it
+// without configuration.
+type Scalar interface{}
 
 type Scene struct {
 	// Background corresponds to the JSON schema field "background".
@@ -1104,6 +1141,9 @@ type ShapeLayer struct {
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
+
+	// VisibleIf corresponds to the JSON schema field "visibleIf".
+	VisibleIf Condition `json:"visibleIf,omitempty,omitzero" yaml:"visibleIf,omitempty" mapstructure:"visibleIf,omitempty"`
 }
 
 type ShapeLayerShape string
@@ -1258,6 +1298,9 @@ type StatBeatLayer struct {
 
 	// ValueFont corresponds to the JSON schema field "valueFont".
 	ValueFont *Font `json:"valueFont,omitempty,omitzero" yaml:"valueFont,omitempty" mapstructure:"valueFont,omitempty"`
+
+	// VisibleIf corresponds to the JSON schema field "visibleIf".
+	VisibleIf Condition `json:"visibleIf,omitempty,omitzero" yaml:"visibleIf,omitempty" mapstructure:"visibleIf,omitempty"`
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
@@ -1396,6 +1439,9 @@ type TextLayer struct {
 	// Type corresponds to the JSON schema field "type".
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
 
+	// VisibleIf corresponds to the JSON schema field "visibleIf".
+	VisibleIf Condition `json:"visibleIf,omitempty,omitzero" yaml:"visibleIf,omitempty" mapstructure:"visibleIf,omitempty"`
+
 	// Wrap corresponds to the JSON schema field "wrap".
 	Wrap *bool `json:"wrap,omitempty,omitzero" yaml:"wrap,omitempty" mapstructure:"wrap,omitempty"`
 }
@@ -1513,6 +1559,9 @@ type TrailLayer struct {
 
 	// Type corresponds to the JSON schema field "type".
 	Type string `json:"type" yaml:"type" mapstructure:"type"`
+
+	// VisibleIf corresponds to the JSON schema field "visibleIf".
+	VisibleIf Condition `json:"visibleIf,omitempty,omitzero" yaml:"visibleIf,omitempty" mapstructure:"visibleIf,omitempty"`
 
 	// How far back the trail reaches. Sample i sits at `tMs - i * windowMs /
 	// samples`.

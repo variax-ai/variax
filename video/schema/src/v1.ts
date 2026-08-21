@@ -81,6 +81,33 @@ export type AnimatedScale =
     }
   | Generator;
 export type Effect = GaussianBlurEffect | DropShadowEffect | DownscaleBlurEffect;
+/**
+ * A predicate over `vars` deciding whether a layer is drawn at all — the one place document structure, rather than a value, may depend on a runtime fact. A layer that fails its condition is skipped entirely, and nothing moves to fill the gap: layout stays the author's job, so a document with an optional layer positions the layers around it for both cases. The string form names a var, with or without the `$var:` prefix, and holds when the value is truthy: `false`, `0`, `NaN`, the empty string, the strings `"false"` and `"0"`, and an unset var are all false, everything else true. The object form compares instead, as strings, so `1` and `"1"` match — an unset var never matches.
+ */
+export type Condition =
+  | string
+  | {
+      /**
+       * The name of a var, without the `$var:` prefix.
+       */
+      var: string;
+      /**
+       * Holds when the var equals this value. Mutually exclusive with `in`.
+       */
+      equals?: string | number | boolean;
+      /**
+       * Holds when the var equals any of these values. Mutually exclusive with `equals`.
+       */
+      in?: Scalar[];
+      /**
+       * Inverts the whole test, including the truthiness form.
+       */
+      not?: boolean;
+    };
+/**
+ * A single JSON value a var can hold. Spelled as an `anyOf` of one-type schemas rather than a `type` array, so a validator running in strict mode compiles it without configuration.
+ */
+export type Scalar = string | number | boolean;
 
 /**
  * A declarative JSON format for motion-graphics videos, inspired by the Lottie schema.
@@ -167,6 +194,7 @@ export interface ShapeLayer {
   startMs?: number;
   endMs?: number;
   persist?: boolean;
+  visibleIf?: Condition;
 }
 export interface Stroke {
   color: string;
@@ -240,6 +268,7 @@ export interface TextLayer {
   startMs?: number;
   endMs?: number;
   persist?: boolean;
+  visibleIf?: Condition;
 }
 export interface TemplateString {
   template: string;
@@ -261,6 +290,7 @@ export interface ImageLayer {
   startMs?: number;
   endMs?: number;
   persist?: boolean;
+  visibleIf?: Condition;
 }
 export interface Frame {
   x: number;
@@ -278,6 +308,7 @@ export interface GroupLayer {
   startMs?: number;
   endMs?: number;
   persist?: boolean;
+  visibleIf?: Condition;
 }
 export interface RefLayer {
   type: "ref";
@@ -293,6 +324,7 @@ export interface RefLayer {
   startMs?: number;
   endMs?: number;
   persist?: boolean;
+  visibleIf?: Condition;
 }
 export interface RepeaterLayer {
   type: "repeater";
@@ -304,6 +336,7 @@ export interface RepeaterLayer {
   startMs?: number;
   endMs?: number;
   persist?: boolean;
+  visibleIf?: Condition;
 }
 export interface CaptionSequenceLayer {
   type: "captionSequence";
@@ -323,6 +356,7 @@ export interface CaptionSequenceLayer {
   startMs?: number;
   endMs?: number;
   persist?: boolean;
+  visibleIf?: Condition;
 }
 export interface CaptionEntry {
   t: number;
@@ -349,6 +383,7 @@ export interface CompositeMaskLayer {
   startMs?: number;
   endMs?: number;
   persist?: boolean;
+  visibleIf?: Condition;
 }
 /**
  * Motion history: samples `source` at past times and unions a circle per sample, radius shrinking with age. Emits vector geometry only (no imagery), which is what makes it usable as a compositeMask mask. `source` is the moving point whose path is sampled — it must be declarative so the renderer can re-evaluate it at past times, and is interpreted in absolute document coordinates. `radius` is the radius of the freshest sample. `stroke` draws a polyline through the sample centres with round caps and joins. Samples older than the layer's own `startMs` are dropped.
@@ -383,6 +418,7 @@ export interface TrailLayer {
   startMs?: number;
   endMs?: number;
   persist?: boolean;
+  visibleIf?: Condition;
 }
 export interface DataVizLayer {
   type: "dataViz";
@@ -407,6 +443,7 @@ export interface DataVizLayer {
   startMs?: number;
   endMs?: number;
   persist?: boolean;
+  visibleIf?: Condition;
 }
 export interface StatBeatLayer {
   type: "statBeat";
@@ -425,6 +462,7 @@ export interface StatBeatLayer {
   startMs?: number;
   endMs?: number;
   persist?: boolean;
+  visibleIf?: Condition;
 }
 export interface StatBeatEntry {
   value: number | string;
