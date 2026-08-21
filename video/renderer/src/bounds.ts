@@ -1,4 +1,6 @@
 import type { Effect, Layer } from '@variax-ai/video-schema'
+import type { ResolveContext } from './types'
+import { layerIsVisible } from './condition'
 import { evaluateNumber } from './animate'
 import { layerMatrix, type Matrix } from './transform'
 import { trailSamples } from './layers/trail'
@@ -101,7 +103,7 @@ export function effectExtent(effects: Effect[] | undefined, tMs: number): number
  * The layer's extent before its own transform is applied, or null when it is
  * not cheaply knowable.
  */
-function localBounds(layer: Layer, tMs: number): Bounds | null {
+function localBounds(layer: Layer, tMs: number, resolve: ResolveContext): Bounds | null {
   switch (layer.type) {
     case 'shape': {
       // Shapes are drawn centred on the origin; `position` is the translation.
@@ -143,7 +145,7 @@ function localBounds(layer: Layer, tMs: number): Bounds | null {
     case 'group': {
       let b: Bounds | null = null
       for (const child of layer.children) {
-        const cb = layerBounds(child, tMs)
+        const cb = layerBounds(child, tMs, resolve)
         if (!cb) return null
         // A child that paints nothing has an empty box at the origin. Unioning
         // it would stretch the group all the way back to (0, 0) — a crop the
@@ -171,13 +173,14 @@ function localBounds(layer: Layer, tMs: number): Bounds | null {
  * here, generously. Callers use it to size buffers, so a box that is too small
  * clips the render while one that is too large only costs pixels.
  */
-export function layerBounds(layer: Layer, tMs: number): Bounds | null {
-  // Mirrors drawLayer's visibility gate: outside its window a layer paints
-  // nothing at all, which is a known — and maximally useful — extent.
-  if (layer.startMs !== undefined && tMs < layer.startMs) return EMPTY
-  if (layer.endMs !== undefined && tMs >= layer.endMs) return EMPTY
+export function layerBounds(layer: Layer, tMs: number, resolve: ResolveContext): Bounds | null {
+  // drawLayer's own gate, not a copy of it: a layer outside its window, or one
+  // whose `visibleIf` does not hold, paints nothing at all — a known, and
+  // maximally useful, extent. A second copy of this rule would size buffers for
+  // layers the renderer no longer draws.
+  if (!layerIsVisible(layer, tMs, resolve)) return EMPTY
 
-  const local = localBounds(layer, tMs)
+  const local = localBounds(layer, tMs, resolve)
   if (!local) return null
   // Nothing to place: a layer that paints nowhere paints nowhere transformed.
   if (local.w === 0 && local.h === 0) return EMPTY

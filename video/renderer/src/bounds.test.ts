@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest'
 import type { Layer } from '@variax-ai/video-schema'
 import { alignToPixels, intersectBounds, isEmptyBounds, layerBounds, subtreeEffectExtent, unionBounds } from './bounds'
 
-function bounds(layer: Layer, tMs = 0) {
-  return layerBounds(layer, tMs)
+const resolve = { vars: {}, tokens: {} }
+
+function bounds(layer: Layer, tMs = 0, vars: Record<string, string | number | boolean> = {}) {
+  return layerBounds(layer, tMs, { ...resolve, vars })
 }
 
 describe('layerBounds', () => {
@@ -110,6 +112,12 @@ describe('layerBounds', () => {
       ],
     } as Layer, 0)!
     expect(b).toEqual({ x: 850, y: 1550, w: 100, h: 100 })
+  })
+
+  it('is empty for a layer whose condition does not hold', () => {
+    const layer = { type: 'shape', shape: 'rect', size: [100, 100], visibleIf: '$var:show' } as Layer
+    expect(isEmptyBounds(bounds(layer, 0, { show: false })!)).toBe(true)
+    expect(isEmptyBounds(bounds(layer, 0, { show: true })!)).toBe(false)
   })
 
   it('is empty for a trail with no live samples', () => {

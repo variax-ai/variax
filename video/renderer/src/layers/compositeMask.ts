@@ -52,7 +52,7 @@ export function drawCompositeMaskLayer(
   // everything here — allocation, the source draw, both composites — is confined
   // to it. A mask whose extent is not derivable falls back to the whole
   // document, which is what this always used to do.
-  const mask = layerBounds(layer.mask, tMs)
+  const mask = layerBounds(layer.mask, tMs, rctx.resolve)
   // A mask with a known-empty extent erases the source entirely, so there is
   // genuinely nothing to composite — and no guard band can bring it back.
   if (mask && isEmptyBounds(mask)) return
