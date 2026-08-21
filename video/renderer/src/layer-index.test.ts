@@ -21,7 +21,7 @@ describe('indexLayersById', () => {
         { type: 'shape', shape: 'rect', size: [1, 1] },
       ]),
     )
-    expect(Object.keys(index)).toEqual(['card'])
+    expect([...index.keys()]).toEqual(['card'])
   })
 
   it('reaches layers nested in groups, repeaters and composite masks', () => {
@@ -36,7 +36,7 @@ describe('indexLayersById', () => {
         },
       ]),
     )
-    expect(Object.keys(index).sort()).toEqual(['inGroup', 'inMask', 'inRepeater', 'inSource'])
+    expect([...index.keys()].sort()).toEqual(['inGroup', 'inMask', 'inRepeater', 'inSource'])
   })
 
   it('does not trip over a string source on a composite mask', () => {
@@ -47,6 +47,13 @@ describe('indexLayersById', () => {
     ).not.toThrow()
   })
 
+  it('records an id that collides with an Object.prototype key', () => {
+    // `'toString' in {}` is true, so a plain-object index would silently skip
+    // this layer and hand back a function when a shape sized itself to it.
+    const index = indexLayersById(doc([{ type: 'text', id: 'toString', content: 'x' }]))
+    expect(index.get('toString')).toEqual({ type: 'text', id: 'toString', content: 'x' })
+  })
+
   it('keeps the first of a duplicated id, in document order', () => {
     const index = indexLayersById(
       doc([
@@ -54,6 +61,6 @@ describe('indexLayersById', () => {
         { type: 'text', id: 'dup', content: 'second' },
       ]),
     )
-    expect((index.dup as { content: string }).content).toBe('first')
+    expect((index.get('dup') as { content: string }).content).toBe('first')
   })
 })

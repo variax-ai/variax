@@ -65,7 +65,7 @@ export interface RenderContext {
    * once at load: a shape's `sizeTo` names the text layer it backs, and that
    * layer need not be its sibling.
    */
-  layersById: Record<string, Layer>
+  layersById: Map<string, Layer>
   drawLayer: (ctx: CanvasRenderingContext2D, layer: Layer, tMs: number) => void
   sceneStartMs: number
 }

@@ -35,7 +35,7 @@ function measureSizeTo(
   tMs: number,
   rctx: RenderContext,
 ): [number, number] | null {
-  const target = rctx.layersById[sizeTo.layer]
+  const target = rctx.layersById.get(sizeTo.layer)
   if (!target || target.type !== 'text') return null
 
   // Laying the text out sets the font; the shape must not inherit it.

@@ -19,11 +19,8 @@ export function drawTextLayer(
   ctx.textBaseline = 'middle'
   ctx.fillStyle = resolveColor(layer.color, rctx.resolve) ?? '#ffffff'
 
-  if (layout.lines.length === 1) {
-    ctx.fillText(layout.lines[0], 0, 0)
-    return
-  }
-
+  // One line lands at y=0, which is what the general case computes for it:
+  // height === lineHeight makes `top` zero.
   const top = -layout.height / 2 + layout.lineHeight / 2
   layout.lines.forEach((line, i) => {
     ctx.fillText(line, 0, top + i * layout.lineHeight)

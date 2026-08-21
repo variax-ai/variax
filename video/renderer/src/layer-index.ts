@@ -8,11 +8,14 @@ import type { Layer, VideoDocument } from '@variax-ai/video-schema'
  * asks for ids to be unique and cannot enforce it, and picking one deterministic
  * winner beats having the answer depend on traversal order.
  */
-export function indexLayersById(doc: VideoDocument): Record<string, Layer> {
-  const index: Record<string, Layer> = {}
+export function indexLayersById(doc: VideoDocument): Map<string, Layer> {
+  // A Map, not a plain object: `'toString' in index` is true before anything
+  // is added, so an id that lands on Object.prototype would never be recorded
+  // and would resolve to a function when looked up.
+  const index = new Map<string, Layer>()
 
   function visit(layer: Layer): void {
-    if (layer.id && !(layer.id in index)) index[layer.id] = layer
+    if (layer.id && !index.has(layer.id)) index.set(layer.id, layer)
 
     if (layer.type === 'group') {
       for (const child of layer.children) visit(child)

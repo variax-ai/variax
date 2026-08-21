@@ -16,7 +16,7 @@ const message: Layer = {
 
 function rctxWith(layers: Record<string, Layer>, vars: Record<string, string | number | boolean> = {}): RenderContext {
   const rctx = createTestRctx({ vars })
-  rctx.layersById = layers
+  rctx.layersById = new Map(Object.entries(layers))
   return rctx
 }
 

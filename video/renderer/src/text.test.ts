@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { buildFontString, resolveContent, wrapText } from './text'
-import { createTestRctx } from './test-helpers'
+import type { TextLayer } from '@variax-ai/video-schema'
+import { buildFontString, layoutTextLayer, resolveContent, wrapText } from './text'
+import { createStubCtx, createTestRctx, getCalls } from './test-helpers'
 
 describe('buildFontString', () => {
   it('returns default when font is undefined', () => {
@@ -152,5 +153,58 @@ describe('wrapText', () => {
   it('keeps single long word on one line', () => {
     const lines = wrapText(measure, 'superlongword', 50)
     expect(lines).toEqual(['superlongword'])
+  })
+})
+
+describe('layoutTextLayer memoisation', () => {
+  const layer = { type: 'text', content: 'hello world', font: { size: 100 }, wrap: true, maxWidth: 100 } as TextLayer
+
+  it('lays a layer out once per frame, however many callers ask', () => {
+    const rctx = createTestRctx()
+    const ctx = createStubCtx()
+    const first = layoutTextLayer(ctx, layer, rctx, 0)
+    const measuresAfterFirst = getCalls(ctx, 'measureText').length
+    const second = layoutTextLayer(ctx, layer, rctx, 0)
+
+    expect(second).toBe(first)
+    expect(getCalls(ctx, 'measureText')).toHaveLength(measuresAfterFirst)
+    // The font is still set for the caller that got the cached layout.
+    expect(ctx.font).toBe(first!.font)
+  })
+
+  it('lays out again when the time moves', () => {
+    const rctx = createTestRctx()
+    const ctx = createStubCtx()
+    const first = layoutTextLayer(ctx, layer, rctx, 0)
+    expect(layoutTextLayer(ctx, layer, rctx, 1)).not.toBe(first)
+  })
+
+  it('lays out again when the same frame is drawn for another scene origin', () => {
+    // A countUp binding resolves against sceneStartMs, and a persisted layer is
+    // drawn with its own scene's origin inside the frame of a later one.
+    const counting = {
+      type: 'text',
+      content: { template: '{n}', bindings: { n: { type: 'countUp', target: 100, durationMs: 1000 } } },
+      font: { size: 40 },
+    } as TextLayer
+    const rctx = createTestRctx()
+    const ctx = createStubCtx()
+
+    rctx.sceneStartMs = 0
+    const atSceneStart = layoutTextLayer(ctx, counting, rctx, 500)!.lines[0]
+    rctx.sceneStartMs = 500
+    const atLaterScene = layoutTextLayer(ctx, counting, rctx, 500)!.lines[0]
+
+    expect(atSceneStart).not.toBe(atLaterScene)
+  })
+
+  it('keeps two drawers over one layer apart', () => {
+    const bound = { type: 'text', content: '$var:message', font: { size: 40 } } as TextLayer
+    const ctx = createStubCtx()
+    const one = createTestRctx({ vars: { message: 'first' } })
+    const two = createTestRctx({ vars: { message: 'second' } })
+
+    expect(layoutTextLayer(ctx, bound, one, 0)!.lines).toEqual(['first'])
+    expect(layoutTextLayer(ctx, bound, two, 0)!.lines).toEqual(['second'])
   })
 })

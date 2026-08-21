@@ -202,7 +202,46 @@ export interface TextLayout {
  * `measureText` per frame that only `sizeTo` needs. Ask for it with
  * `measureLayoutWidth`.
  */
+/**
+ * Layouts already computed for a render context, so a shape that sizes itself
+ * to a text layer and the text layer itself do not lay the same text out twice
+ * in one frame.
+ *
+ * Keyed per render context rather than globally: two drawers over one document
+ * can hold different `vars`, and `resolveDocumentDefs` makes shared layer
+ * objects likely. `sceneStartMs` is part of the key because a `countUp` binding
+ * resolves against it, and a persisted layer is drawn with its own scene's
+ * value inside the same frame.
+ */
+const layoutCache = new WeakMap<
+  RenderContext,
+  Map<TextLayer, { tMs: number; sceneStartMs: number; layout: TextLayout | null }>
+>()
+
 export function layoutTextLayer(
+  ctx: CanvasRenderingContext2D,
+  layer: TextLayer,
+  rctx: RenderContext,
+  tMs: number,
+): TextLayout | null {
+  let cache = layoutCache.get(rctx)
+  if (!cache) {
+    cache = new Map()
+    layoutCache.set(rctx, cache)
+  }
+  const hit = cache.get(layer)
+  if (hit && hit.tMs === tMs && hit.sceneStartMs === rctx.sceneStartMs) {
+    // Callers rely on the font being current, cache hit or not.
+    if (hit.layout) ctx.font = hit.layout.font
+    return hit.layout
+  }
+
+  const layout = computeTextLayout(ctx, layer, rctx, tMs)
+  cache.set(layer, { tMs, sceneStartMs: rctx.sceneStartMs, layout })
+  return layout
+}
+
+function computeTextLayout(
   ctx: CanvasRenderingContext2D,
   layer: TextLayer,
   rctx: RenderContext,
