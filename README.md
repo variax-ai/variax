@@ -96,6 +96,14 @@ draws nothing:
 { "type": "use", "def": "$def:cardChrome" }
 ```
 
+A `use` carries nothing of its own — no transform, no time window, no
+`visibleIf` — because it is replaced by what it names. Put a `group` around it
+when the copy needs any of those:
+
+```json
+{ "type": "group", "visibleIf": "$var:showCard", "children": [{ "type": "use", "def": "$def:card" }] }
+```
+
 References resolve once, when the document is loaded, so every reference to one
 def ends up pointing at one value rather than at a copy of it. A def may
 reference another; a cycle throws. A reference to a name that does not exist is

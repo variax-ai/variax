@@ -15,6 +15,9 @@ export function indexLayersById(doc: VideoDocument): Map<string, Layer> {
   const index = new Map<string, Layer>()
 
   function visit(layer: Layer): void {
+    // A `use` carries no id of its own; the layer it names is indexed when
+    // resolveDocumentDefs has put it in place.
+    if (layer.type === 'use') return
     if (layer.id && !index.has(layer.id)) index.set(layer.id, layer)
 
     if (layer.type === 'group') {
