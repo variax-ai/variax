@@ -53,19 +53,23 @@ export function resolveDocumentDefs(doc: VideoDocument): VideoDocument {
   const defs = doc.defs
   if (!defs || Object.keys(defs).length === 0) return doc
 
+  // A Map, not the object itself: `'toString' in defs` is true for every
+  // document, and a name that lands on Object.prototype would otherwise
+  // resolve to a function and be substituted into the layer tree.
+  const declared = new Map<string, unknown>(Object.entries(defs))
   const resolved = new Map<string, unknown>()
   const inProgress: string[] = []
 
   function resolveDef(name: string): unknown {
     if (resolved.has(name)) return resolved.get(name)
-    if (!(name in defs!)) return undefined
+    if (!declared.has(name)) return undefined
 
     const cycleAt = inProgress.indexOf(name)
     if (cycleAt !== -1) throw new CyclicDefError([...inProgress.slice(cycleAt), name])
 
     inProgress.push(name)
     // A def may reference another def, so its own body is resolved too.
-    const value = walk(defs![name] as unknown)
+    const value = walk(declared.get(name))
     inProgress.pop()
 
     resolved.set(name, value)
@@ -79,24 +83,28 @@ export function resolveDocumentDefs(doc: VideoDocument): VideoDocument {
       return value === undefined ? node : value
     }
 
+    if (isUseLayer(node)) {
+      const value = resolveDef(defName(node.def))
+      // Substituted wherever a layer is accepted, not only in a layer list —
+      // a `use` as a compositeMask's source or a repeater's child must resolve
+      // too. An array cannot stand in a single-layer slot, and an unknown name
+      // has nothing to stand in for; both keep the `use`, which draws nothing.
+      return value === undefined || Array.isArray(value) ? node : value
+    }
+
     if (Array.isArray(node)) {
       let changed = false
       const out: unknown[] = []
       for (const item of node) {
+        // The one thing a list position allows that a slot does not: a def
+        // holding several layers splices in, keeping the order around it.
         if (isUseLayer(item)) {
           const value = resolveDef(defName(item.def))
-          if (value === undefined) {
-            // Keep the `use` in place; drawLayer no-ops on it.
-            out.push(item)
-          } else if (Array.isArray(value)) {
-            // A def holding several layers splices in, keeping the order of
-            // the layers around it.
+          if (Array.isArray(value)) {
             out.push(...value)
-          } else {
-            out.push(value)
+            changed = true
+            continue
           }
-          changed = true
-          continue
         }
         const next = walk(item)
         if (next !== item) changed = true

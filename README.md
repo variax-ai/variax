@@ -86,8 +86,11 @@ apart. `defs` names a value once; `$def:name` refers to it:
 ```
 
 A def can hold an animated value, a layer, or an array of layers. A layer def is
-drawn with a `use` layer, which is pure substitution — an array splices in where
-the `use` stands, keeping the order of the layers around it:
+drawn with a `use` layer, which is pure substitution — anywhere a layer is
+accepted, including a `compositeMask`'s source and a `repeater`'s child. In a
+layer list, a def holding several layers splices in, keeping the order of the
+layers around it; in a single-layer slot, which has nothing to splice into, it
+draws nothing:
 
 ```json
 { "type": "use", "def": "$def:cardChrome" }

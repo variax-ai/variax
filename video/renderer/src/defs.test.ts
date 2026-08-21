@@ -129,6 +129,80 @@ describe('resolveDocumentDefs', () => {
     expect(layers[1].type).toBe('use')
   })
 
+  it('substitutes a use layer in a single-layer slot, not just in a list', () => {
+    const resolved = resolveDocumentDefs(
+      doc({
+        defs: {
+          spotlight: { type: 'shape', shape: 'ellipse', size: [50, 50], fill: '#fff' },
+          photo: { type: 'image', asset: 'photo', frame: { x: 0, y: 0, w: 10, h: 10 } },
+        },
+        scenes: [
+          {
+            id: 's',
+            startMs: 0,
+            endMs: 1000,
+            layers: [
+              {
+                type: 'compositeMask',
+                source: { type: 'use', def: 'photo' },
+                mask: { type: 'use', def: '$def:spotlight' },
+              },
+              { type: 'repeater', count: 2, child: { type: 'use', def: 'spotlight' } },
+            ],
+          },
+        ],
+      }),
+    )
+    const [mask, repeater] = resolved.scenes[0].layers as unknown as [
+      { source: { type: string }; mask: { type: string } },
+      { child: { type: string } },
+    ]
+    expect(mask.source.type).toBe('image')
+    expect(mask.mask.type).toBe('shape')
+    expect(repeater.child.type).toBe('shape')
+  })
+
+  it('leaves a use alone when a multi-layer def lands in a single-layer slot', () => {
+    const resolved = resolveDocumentDefs(
+      doc({
+        defs: { pair: [{ type: 'shape', shape: 'rect', size: [1, 1] }, { type: 'shape', shape: 'rect', size: [2, 2] }] },
+        scenes: [
+          {
+            id: 's',
+            startMs: 0,
+            endMs: 1000,
+            layers: [{ type: 'repeater', count: 2, child: { type: 'use', def: 'pair' } }],
+          },
+        ],
+      }),
+    )
+    // Nothing sensible to splice into one slot, so it stays a `use` and draws
+    // nothing rather than becoming an array where a layer belongs.
+    expect((resolved.scenes[0].layers[0] as unknown as { child: { type: string } }).child.type).toBe('use')
+  })
+
+  it('does not resolve a name that only exists on Object.prototype', () => {
+    const resolved = resolveDocumentDefs(
+      doc({
+        defs: { real: [1, 2] },
+        scenes: [
+          {
+            id: 's',
+            startMs: 0,
+            endMs: 1000,
+            layers: [
+              { type: 'trail', source: '$def:toString', windowMs: 100, samples: 2, radius: 5 },
+              { type: 'use', def: 'constructor' },
+            ],
+          },
+        ],
+      }),
+    )
+    const layers = resolved.scenes[0].layers as unknown as [{ source: unknown }, { type: string }]
+    expect(layers[0].source).toBe('$def:toString')
+    expect(layers[1].type).toBe('use')
+  })
+
   it('throws on a cycle, naming it', () => {
     const cyclic = doc({
       defs: { a: { x: '$def:b', y: 0 }, b: { x: '$def:a', y: 0 } },
