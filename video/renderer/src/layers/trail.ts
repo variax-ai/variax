@@ -18,7 +18,23 @@ export interface TrailSample {
  * Samples older than `startMs` are dropped rather than clamped — clamping would
  * pile concentric circles onto the start point instead of shortening the trail.
  */
+/**
+ * The last schedule computed for a layer. A trail used as a compositeMask has
+ * its samples asked for twice in a frame — once to derive the crop, once to
+ * draw — and the schedule is a pure function of the layer and the time, so the
+ * second ask is free. Callers must treat the array as read-only.
+ */
+const scheduleCache = new WeakMap<TrailLayer, { tMs: number; samples: TrailSample[] }>()
+
 export function trailSamples(layer: TrailLayer, tMs: number): TrailSample[] {
+  const cached = scheduleCache.get(layer)
+  if (cached && cached.tMs === tMs) return cached.samples
+  const samples = computeTrailSamples(layer, tMs)
+  scheduleCache.set(layer, { tMs, samples })
+  return samples
+}
+
+function computeTrailSamples(layer: TrailLayer, tMs: number): TrailSample[] {
   const samples = Math.max(1, Math.floor(layer.samples))
   const take = layer.take === undefined ? samples : Math.min(samples, Math.max(1, Math.floor(layer.take)))
   const falloff = layer.falloff ?? 0

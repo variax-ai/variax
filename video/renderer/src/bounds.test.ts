@@ -1,12 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import type { Layer } from '@variax-ai/video-schema'
 import { alignToPixels, intersectBounds, isEmptyBounds, layerBounds, subtreeEffectExtent, unionBounds } from './bounds'
-import { createTestRctx } from './test-helpers'
-
-const rctx = createTestRctx()
 
 function bounds(layer: Layer, tMs = 0) {
-  return layerBounds(layer, tMs, rctx)
+  return layerBounds(layer, tMs)
 }
 
 describe('layerBounds', () => {
@@ -101,6 +98,18 @@ describe('layerBounds', () => {
     const layer = { type: 'shape', shape: 'rect', size: [100, 100], startMs: 1000 } as Layer
     expect(isEmptyBounds(bounds(layer, 500)!)).toBe(true)
     expect(isEmptyBounds(bounds(layer, 1500)!)).toBe(false)
+  })
+
+  it('does not stretch a group back to the origin for a child that paints nothing', () => {
+    const b = bounds({
+      type: 'group',
+      position: [900, 1600],
+      children: [
+        { type: 'shape', shape: 'rect', size: [100, 100], position: [0, 0] },
+        { type: 'shape', shape: 'rect', size: [100, 100], position: [0, 0], startMs: 2000 },
+      ],
+    } as Layer, 0)!
+    expect(b).toEqual({ x: 850, y: 1550, w: 100, h: 100 })
   })
 
   it('is empty for a trail with no live samples', () => {

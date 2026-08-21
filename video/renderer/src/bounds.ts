@@ -1,6 +1,6 @@
-import type { Effect, Layer, Point, Transform } from '@variax-ai/video-schema'
-import type { RenderContext } from './types'
-import { evaluateNumber, evaluatePoint, evaluateScale } from './animate'
+import type { Effect, Layer } from '@variax-ai/video-schema'
+import { evaluateNumber } from './animate'
+import { layerMatrix, type Matrix } from './transform'
 import { trailSamples } from './layers/trail'
 
 /** An axis-aligned box in the coordinate space of the layer's parent. */
@@ -9,59 +9,6 @@ export interface Bounds {
   y: number
   w: number
   h: number
-}
-
-/**
- * A 2×3 affine matrix, `[a, b, c, d, e, f]`, matching the canvas convention:
- * `x' = a·x + c·y + e`, `y' = b·x + d·y + f`.
- */
-type Matrix = [number, number, number, number, number, number]
-
-const IDENTITY: Matrix = [1, 0, 0, 1, 0, 0]
-
-/** `a` applied after `b` — the same order `ctx.translate`/`scale` compose in. */
-function multiply(a: Matrix, b: Matrix): Matrix {
-  return [
-    a[0] * b[0] + a[2] * b[1],
-    a[1] * b[0] + a[3] * b[1],
-    a[0] * b[2] + a[2] * b[3],
-    a[1] * b[2] + a[3] * b[3],
-    a[0] * b[4] + a[2] * b[5] + a[4],
-    a[1] * b[4] + a[3] * b[5] + a[5],
-  ]
-}
-
-function translated(m: Matrix, tx: number, ty: number): Matrix {
-  return multiply(m, [1, 0, 0, 1, tx, ty])
-}
-
-/**
- * The matrix `applyTransform` would leave on the context for this layer. It
- * mirrors that function step for step; if one changes, the other must.
- */
-function layerMatrix(position: Point | undefined, transform: Transform | undefined, tMs: number): Matrix {
-  let m: Matrix = IDENTITY
-  if (position) m = translated(m, position[0], position[1])
-  if (!transform) return m
-
-  const anchor = transform.anchor
-  if (anchor) m = translated(m, anchor[0], anchor[1])
-  if (transform.position) {
-    const p = evaluatePoint(transform.position, tMs)
-    m = translated(m, p[0], p[1])
-  }
-  if (transform.scale) {
-    const s = evaluateScale(transform.scale, tMs)
-    m = multiply(m, [s[0], 0, 0, s[1], 0, 0])
-  }
-  if (transform.rotation) {
-    const r = (evaluateNumber(transform.rotation, tMs) * Math.PI) / 180
-    const cos = Math.cos(r)
-    const sin = Math.sin(r)
-    m = multiply(m, [cos, sin, -sin, cos, 0, 0])
-  }
-  if (anchor) m = translated(m, -anchor[0], -anchor[1])
-  return m
 }
 
 /** The axis-aligned box containing `b`'s four corners after `m`. */
@@ -84,7 +31,7 @@ function boundsFrom(left: number, top: number, right: number, bottom: number): B
   return { x: left, y: top, w: right - left, h: bottom - top }
 }
 
-function expand(b: Bounds, by: number): Bounds {
+export function expandBounds(b: Bounds, by: number): Bounds {
   if (by <= 0) return b
   return { x: b.x - by, y: b.y - by, w: b.w + by * 2, h: b.h + by * 2 }
 }
@@ -154,7 +101,7 @@ export function effectExtent(effects: Effect[] | undefined, tMs: number): number
  * The layer's extent before its own transform is applied, or null when it is
  * not cheaply knowable.
  */
-function localBounds(layer: Layer, tMs: number, rctx: RenderContext): Bounds | null {
+function localBounds(layer: Layer, tMs: number): Bounds | null {
   switch (layer.type) {
     case 'shape': {
       // Shapes are drawn centred on the origin; `position` is the translation.
@@ -166,12 +113,12 @@ function localBounds(layer: Layer, tMs: number, rctx: RenderContext): Bounds | n
         layer.shape === 'line'
           ? { x: -w / 2, y: 0, w, h: 0 }
           : { x: -w / 2, y: -h / 2, w, h }
-      if (layer.stroke) b = expand(b, layer.stroke.width / 2)
+      if (layer.stroke) b = expandBounds(b, layer.stroke.width / 2)
       if (layer.shadow) {
         const pad = shadowPadding(layer.shadow.blur)
         const ox = layer.shadow.offsetX ?? 0
         const oy = layer.shadow.offsetY ?? 0
-        b = unionBounds(b, expand({ ...b, x: b.x + ox, y: b.y + oy }, pad))
+        b = unionBounds(b, expandBounds({ ...b, x: b.x + ox, y: b.y + oy }, pad))
       }
       return b
     }
@@ -185,7 +132,7 @@ function localBounds(layer: Layer, tMs: number, rctx: RenderContext): Bounds | n
         const circle = { x: s.x - s.r, y: s.y - s.r, w: s.r * 2, h: s.r * 2 }
         b = b ? unionBounds(b, circle) : circle
       }
-      return expand(b as Bounds, pad)
+      return expandBounds(b as Bounds, pad)
     }
 
     case 'image':
@@ -196,8 +143,12 @@ function localBounds(layer: Layer, tMs: number, rctx: RenderContext): Bounds | n
     case 'group': {
       let b: Bounds | null = null
       for (const child of layer.children) {
-        const cb = layerBounds(child, tMs, rctx)
+        const cb = layerBounds(child, tMs)
         if (!cb) return null
+        // A child that paints nothing has an empty box at the origin. Unioning
+        // it would stretch the group all the way back to (0, 0) — a crop the
+        // size of the document for a group that moved somewhere else.
+        if (isEmptyBounds(cb)) continue
         b = b ? unionBounds(b, cb) : cb
       }
       return b ?? EMPTY
@@ -220,13 +171,13 @@ function localBounds(layer: Layer, tMs: number, rctx: RenderContext): Bounds | n
  * here, generously. Callers use it to size buffers, so a box that is too small
  * clips the render while one that is too large only costs pixels.
  */
-export function layerBounds(layer: Layer, tMs: number, rctx: RenderContext): Bounds | null {
+export function layerBounds(layer: Layer, tMs: number): Bounds | null {
   // Mirrors drawLayer's visibility gate: outside its window a layer paints
   // nothing at all, which is a known — and maximally useful — extent.
   if (layer.startMs !== undefined && tMs < layer.startMs) return EMPTY
   if (layer.endMs !== undefined && tMs >= layer.endMs) return EMPTY
 
-  const local = localBounds(layer, tMs, rctx)
+  const local = localBounds(layer, tMs)
   if (!local) return null
   // Nothing to place: a layer that paints nowhere paints nowhere transformed.
   if (local.w === 0 && local.h === 0) return EMPTY
@@ -240,8 +191,8 @@ export function layerBounds(layer: Layer, tMs: number, rctx: RenderContext): Bou
   // Whether a canvas filter is applied before or after the current transform is
   // implementation-defined, so the padding is applied in both spaces rather
   // than guessing which one the host uses.
-  const b = transformBounds(expand(local, pad), m)
-  const out = expand(b, pad)
+  const b = transformBounds(expandBounds(local, pad), m)
+  const out = expandBounds(b, pad)
   return Number.isFinite(out.x) && Number.isFinite(out.y) && Number.isFinite(out.w) && Number.isFinite(out.h)
     ? out
     : null
@@ -269,9 +220,4 @@ export function subtreeEffectExtent(layer: Layer, tMs: number): number {
     }
   }
   return extent
-}
-
-/** Grows a box on every side. Exported for callers padding a crop. */
-export function expandBounds(b: Bounds, by: number): Bounds {
-  return expand(b, by)
 }
