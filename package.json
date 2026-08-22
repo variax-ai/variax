@@ -12,7 +12,7 @@
     "demo"
   ],
   "scripts": {
-    "build": "npm run build -w @variax-ai/video-schema && npm run build -w @variax-ai/video-renderer && npm run build -w @variax-ai/video-extractor",
+    "build": "npm run build -w @variax-ai/video-schema && npm run build -w @variax-ai/video-renderer && npm run build -w @variax-ai/video-extractor && npm run build -w @variax-ai/video-watermark",
     "test": "npm test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "generate": "npm run generate -w @variax-ai/video-schema",

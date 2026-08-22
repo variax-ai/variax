@@ -1,0 +1,61 @@
+{
+  "name": "@variax-ai/video-watermark",
+  "version": "0.1.0",
+  "description": "Hidden (forensic) watermarking for video frames \u2014 embed and recover a template id that survives re-encoding",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/variax-ai/variax.git",
+    "directory": "video/watermark"
+  },
+  "homepage": "https://github.com/variax-ai/variax/tree/main/video/watermark#readme",
+  "bugs": {
+    "url": "https://github.com/variax-ai/variax/issues"
+  },
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./node": {
+      "types": "./dist/node/index.d.ts",
+      "import": "./dist/node/index.js",
+      "require": "./dist/node/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "bench": "tsx bench/robustness.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "onnxruntime-node": "^1.20.0",
+    "onnxruntime-web": "^1.20.0"
+  },
+  "peerDependenciesMeta": {
+    "onnxruntime-node": {
+      "optional": true
+    },
+    "onnxruntime-web": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^1.0.7",
+    "@variax-ai/video-renderer": "*",
+    "onnxruntime-node": "^1.27.0",
+    "tsup": "^8.0.0",
+    "tsx": "^4.23.12",
+    "vitest": "^4.1.6"
+  },
+  "license": "MIT"
+}
