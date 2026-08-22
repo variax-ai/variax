@@ -12,6 +12,7 @@
  * photograph passing here would prove very little.
  */
 
+import { fileURLToPath } from 'node:url'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { Watermarker } from './watermarker'
 import { createFrame, type Frame } from './frame'
@@ -21,7 +22,7 @@ import { resizePlanar } from './resize'
 const ENABLED = process.env.VARIAX_WATERMARK_E2E === '1'
 const CACHE_DIR =
   process.env.VARIAX_WATERMARK_MODELS ??
-  new URL('../node_modules/.cache/variax-watermark', import.meta.url).pathname
+  fileURLToPath(new URL('../node_modules/.cache/variax-watermark', import.meta.url))
 
 function fill(
   frame: Frame,

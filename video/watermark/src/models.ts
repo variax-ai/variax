@@ -127,7 +127,13 @@ export function getDefaultRuntime(): Promise<Runtime> {
         { cause },
       )
     }
-  })()
+  })().catch((error: unknown) => {
+    // Only successes are worth memoising. Caching the rejection would make a
+    // missing dependency permanent for the life of the process, even once it
+    // has been installed.
+    defaultRuntime = undefined
+    throw error
+  })
   return defaultRuntime
 }
 
@@ -157,7 +163,18 @@ export async function loadModelBytes(
 
     const bytes = await download(modelsUrl + filename)
     await fs.mkdir(cacheDir, { recursive: true })
-    await fs.writeFile(target, bytes)
+
+    // Publish the cache entry atomically. Writing straight to `target` leaves a
+    // truncated model behind if the process dies mid-write, and every later run
+    // would load that corpse and fail deep inside ONNX Runtime instead.
+    const staging = `${target}.${process.pid}.${Date.now()}.tmp`
+    try {
+      await fs.writeFile(staging, bytes)
+      await fs.rename(staging, target)
+    } catch (error) {
+      await fs.rm(staging, { force: true }).catch(() => {})
+      throw error
+    }
     return bytes
   }
 

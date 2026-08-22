@@ -9,6 +9,7 @@ import { mkdtemp, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { Watermarker } from '../watermarker'
@@ -20,7 +21,7 @@ const ENABLED =
 
 const CACHE_DIR =
   process.env.VARIAX_WATERMARK_MODELS ??
-  new URL('../../node_modules/.cache/variax-watermark', import.meta.url).pathname
+  fileURLToPath(new URL('../../node_modules/.cache/variax-watermark', import.meta.url))
 
 /** A short synthetic clip with motion, plus an audio track to check it survives. */
 function makeClip(path: string, size = '1280x720', seconds = 2): void {

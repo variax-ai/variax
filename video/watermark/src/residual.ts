@@ -12,7 +12,8 @@
  * exactly the content where a watermark most needs to stay invisible.
  */
 
-import type { Planar } from './frame'
+import type { CropBox } from './resize'
+import type { Frame, Planar } from './frame'
 
 /**
  * `clamp(stego, -1, 1) - cover`, then per-channel mean removal.
@@ -51,33 +52,55 @@ export function computeResidual(
   return { width: size, height: size, channels: 3, data }
 }
 
+/** Grid resolution of a frame signature, per axis. */
+const SIGNATURE_CELLS = 16
+
 /**
  * A cheap perceptual signature, used to notice scene changes so a shared
  * residual can be recomputed when the frame it was derived from stops
  * resembling the frame it is being applied to.
+ *
+ * Sampled straight from the RGBA frame rather than from the model tensor, and
+ * on a sparse grid rather than every pixel. That is the whole point: deciding
+ * whether the residual can be reused must not cost more than reusing it. This
+ * reads 1024 pixels regardless of resolution, so most frames of a shot never
+ * pay for the full-frame resample the model input would need.
  */
-export function frameSignature(tensor: Float32Array, size: number): Float32Array {
-  const cells = 16
-  const step = Math.max(1, Math.floor(size / cells))
-  const plane = size * size
+export function frameSignature(frame: Frame, region: CropBox): Float32Array {
+  const cells = SIGNATURE_CELLS
   const signature = new Float32Array(cells * cells)
 
   for (let cy = 0; cy < cells; cy++) {
     for (let cx = 0; cx < cells; cx++) {
       let sum = 0
-      let count = 0
-      for (let y = cy * step; y < Math.min((cy + 1) * step, size); y++) {
-        for (let x = cx * step; x < Math.min((cx + 1) * step, size); x++) {
-          const i = y * size + x
-          // Rec. 601 luma, on data already in [-1, 1].
-          sum +=
-            0.299 * tensor[i] +
-            0.587 * tensor[plane + i] +
-            0.114 * tensor[2 * plane + i]
-          count += 1
+      // Four samples per cell: one pixel would be too easily fooled by a
+      // single moving element, a full average too expensive.
+      for (let sy = 0; sy < 2; sy++) {
+        for (let sx = 0; sx < 2; sx++) {
+          const fx =
+            region.x +
+            Math.min(
+              region.width - 1,
+              Math.floor(((cx + (sx + 0.5) / 2) / cells) * region.width),
+            )
+          const fy =
+            region.y +
+            Math.min(
+              region.height - 1,
+              Math.floor(((cy + (sy + 0.5) / 2) / cells) * region.height),
+            )
+          const p = (fy * frame.width + fx) * 4
+
+          // Rec. 601 luma, rescaled to [-1, 1] so the scene-change threshold
+          // keeps the same meaning as the model's normalised range.
+          const luma =
+            0.299 * frame.data[p] +
+            0.587 * frame.data[p + 1] +
+            0.114 * frame.data[p + 2]
+          sum += luma / 127.5 - 1
         }
       }
-      signature[cy * cells + cx] = count ? sum / count : 0
+      signature[cy * cells + cx] = sum / 4
     }
   }
   return signature

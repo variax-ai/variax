@@ -20,7 +20,14 @@ import {
   type ModelOptions,
 } from './models'
 import { packPayload, unpackPayload, type Payload } from './payload'
-import { applyResidual, cloneFrame, toModelTensor, watermarkRegion } from './pixels'
+import {
+  applyResidual,
+  cloneFrame,
+  toModelTensor,
+  upscaleResidual,
+  watermarkRegion,
+} from './pixels'
+import type { CropBox } from './resize'
 import { computeResidual, frameSignature, signatureDistance } from './residual'
 
 /**
@@ -100,7 +107,12 @@ export class Watermarker {
     const residual = await this.residualFor(cover, bits)
 
     const out = cloneFrame(frame)
-    applyResidual(out, residual, region, this.effectiveStrength(options))
+    applyResidual(
+      out,
+      upscaleResidual(residual, region),
+      region,
+      this.effectiveStrength(options),
+    )
     return out
   }
 
@@ -122,29 +134,31 @@ export class Watermarker {
     const threshold = options.sceneChangeThreshold ?? DEFAULT_SCENE_CHANGE_THRESHOLD
     const size = this.models.config.encodeSize
 
-    let cached: { residual: Planar; signature: Float32Array } | undefined
+    let cached:
+      | { upscaled: Planar; signature: Float32Array; region: CropBox }
+      | undefined
 
     for await (const frame of frames) {
       assertFrame(frame)
       const region = watermarkRegion(frame.width, frame.height)
-      const cover = toModelTensor(frame, size, region)
+      // Cheap enough to run unconditionally; the expensive tensor build below
+      // only happens when this says the residual can no longer be reused.
+      const signature = frameSignature(frame, region)
 
-      let residual: Planar
-      if (strategy === 'perFrame') {
-        residual = await this.residualFor(cover, bits)
-      } else {
-        const signature = frameSignature(cover, size)
-        if (
-          !cached ||
-          signatureDistance(cached.signature, signature) > threshold
-        ) {
-          cached = { residual: await this.residualFor(cover, bits), signature }
-        }
-        residual = cached.residual
+      const stale =
+        !cached ||
+        cached.region.width !== region.width ||
+        cached.region.height !== region.height ||
+        signatureDistance(cached.signature, signature) > threshold
+
+      if (strategy === 'perFrame' || stale) {
+        const cover = toModelTensor(frame, size, region)
+        const residual = await this.residualFor(cover, bits)
+        cached = { upscaled: upscaleResidual(residual, region), signature, region }
       }
 
       const out = cloneFrame(frame)
-      applyResidual(out, residual, region, strength)
+      applyResidual(out, cached!.upscaled, region, strength)
       yield out
     }
   }
@@ -211,7 +225,14 @@ export class Watermarker {
         `decoder produced no "${DECODER_OUTPUT}" output (got ${Object.keys(outputs).join(', ')})`,
       )
     }
-    return output.data as Float32Array
+    const logits = output.data as Float32Array
+    if (logits.length < PAYLOAD_BITS) {
+      throw new Error(
+        `decoder returned ${logits.length} values, expected at least ${PAYLOAD_BITS} — ` +
+          'the model does not match this data layer',
+      )
+    }
+    return logits
   }
 
   private packetFor(payload: Payload, schema: SchemaName): Float32Array {

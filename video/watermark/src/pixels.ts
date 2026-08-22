@@ -68,7 +68,18 @@ export function toModelTensor(
 }
 
 /**
- * Add an upscaled residual back into a frame, in place.
+ * Resample a model-sized residual up to the region it will be applied to.
+ *
+ * Split out from `applyResidual` so a residual shared across a shot is
+ * upscaled once rather than once per frame — for a 30s 1080p clip that is one
+ * resample instead of nine hundred identical ones.
+ */
+export function upscaleResidual(residual: Planar, region: CropBox): Planar {
+  return resizePlanar(residual, region.width, region.height)
+}
+
+/**
+ * Add an already-upscaled residual back into a frame, in place.
  *
  * Mirrors the reference: the residual is scaled by `strength`, added in [-1, 1]
  * space, clipped, and converted back to bytes. Alpha is left untouched, and so
@@ -76,11 +87,15 @@ export function toModelTensor(
  */
 export function applyResidual(
   frame: Frame,
-  residual: Planar,
+  upscaled: Planar,
   region: CropBox,
   strength: number,
 ): void {
-  const upscaled = resizePlanar(residual, region.width, region.height)
+  if (upscaled.width !== region.width || upscaled.height !== region.height) {
+    throw new Error(
+      `residual is ${upscaled.width}x${upscaled.height} but the region is ${region.width}x${region.height}; upscale it first`,
+    )
+  }
   const plane = region.width * region.height
 
   for (let y = 0; y < region.height; y++) {

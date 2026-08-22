@@ -114,20 +114,18 @@ export async function* readFrames(
   let stderr = ''
   child.stderr.on('data', (chunk) => (stderr += chunk))
 
-  const failed = new Promise<never>((_, reject) => {
-    child.on('error', reject)
-    child.on('close', (code) => {
-      if (code !== 0) {
-        reject(new Error(`ffmpeg exited with ${code}: ${stderr.slice(-2000)}`))
-      }
+  let spawnError: Error | undefined
+  const exited = new Promise<number | null>((resolve) => {
+    child.on('error', (error) => {
+      spawnError = error
+      resolve(null)
     })
+    child.on('close', (code) => resolve(code))
   })
-  // The close handler above rejects even after we have finished reading; keep
-  // it from surfacing as an unhandled rejection once the stream ends cleanly.
-  failed.catch(() => {})
 
   let pending: Buffer = Buffer.alloc(0)
   let produced = 0
+  let stoppedEarly = false
 
   for await (const chunk of child.stdout) {
     pending = pending.length === 0 ? (chunk as Buffer) : Buffer.concat([pending, chunk as Buffer])
@@ -149,10 +147,26 @@ export async function* readFrames(
 
       produced += 1
       if (options.limit != null && produced >= options.limit) {
+        stoppedEarly = true
         child.kill('SIGKILL')
         return
       }
     }
+  }
+
+  // stdout closing is not by itself success: a corrupt input makes ffmpeg emit
+  // some frames and then fail. Without this check the caller receives a short
+  // frame sequence and treats it as the whole video.
+  const code = await exited
+  if (stoppedEarly) return
+  if (spawnError) throw spawnError
+  if (code !== 0) {
+    throw new Error(`ffmpeg exited with ${code}: ${stderr.slice(-2000)}`)
+  }
+  if (pending.length !== 0) {
+    throw new Error(
+      `ffmpeg produced ${pending.length} trailing bytes, not a whole ${info.width}x${info.height} frame`,
+    )
   }
 }
 
@@ -210,6 +224,12 @@ export async function writeFrames(
   let stderr = ''
   child.stderr.on('data', (chunk) => (stderr += chunk))
 
+  // ffmpeg exiting early (bad arguments, unwritable output) turns the next
+  // write into an EPIPE 'error' event. Unhandled, that terminates the process,
+  // so absorb it here and let the exit code below explain what went wrong.
+  child.stdin.on('error', () => {})
+
+  const closed = new Promise<void>((resolve) => child.on('close', () => resolve()))
   const finished = new Promise<void>((resolve, reject) => {
     child.on('error', reject)
     child.on('close', (code) => {
@@ -226,7 +246,12 @@ export async function writeFrames(
         frame.data.byteLength,
       )
       if (!child.stdin.write(bytes)) {
-        await new Promise((resolve) => child.stdin.once('drain', resolve))
+        // Racing the close keeps a dead child from hanging this forever: a
+        // process that has exited will never emit 'drain'.
+        await Promise.race([
+          new Promise<void>((resolve) => child.stdin.once('drain', () => resolve())),
+          closed,
+        ])
       }
     }
   } finally {

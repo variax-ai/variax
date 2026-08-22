@@ -149,17 +149,19 @@ export class DataLayer {
     }
 
     const declared = packet[DATA_ECC_BITS + 2] * 2 + packet[DATA_ECC_BITS + 3]
-    const order = [declared, ...SCHEMAS.map((s) => s.version)].filter(
-      (v, i, all) => all.indexOf(v) === i,
-    )
 
-    let first: DecodedPacket | undefined
-    for (const version of order) {
-      const attempt = this.attempt(packet, SCHEMAS[version])
+    // Looked up by `version`, not by array position: the two happen to coincide
+    // today, and nothing should depend on SCHEMAS staying in that order.
+    const first = SCHEMAS.find((s) => s.version === declared)
+    const order = first ? [first, ...SCHEMAS.filter((s) => s !== first)] : [...SCHEMAS]
+
+    let fallback: DecodedPacket | undefined
+    for (const spec of order) {
+      const attempt = this.attempt(packet, spec)
       if (attempt.valid) return attempt
-      first ??= attempt
+      fallback ??= attempt
     }
-    return first as DecodedPacket
+    return fallback as DecodedPacket
   }
 
   private attempt(packet: Uint8Array, spec: SchemaSpec): DecodedPacket {

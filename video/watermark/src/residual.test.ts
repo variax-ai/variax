@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { createFrame, type Frame } from './frame'
 import {
   computeResidual,
   frameSignature,
@@ -79,33 +80,59 @@ describe('computeResidual', () => {
 })
 
 describe('frameSignature', () => {
+  const WIDTH = 64
+  const HEIGHT = 64
+  const REGION = { x: 0, y: 0, width: WIDTH, height: HEIGHT }
+
+  function flatFrame(grey: number): Frame {
+    const frame = createFrame(WIDTH, HEIGHT)
+    for (let i = 0; i < WIDTH * HEIGHT; i++) {
+      frame.data[i * 4] = grey
+      frame.data[i * 4 + 1] = grey
+      frame.data[i * 4 + 2] = grey
+      frame.data[i * 4 + 3] = 255
+    }
+    return frame
+  }
+
   it('gives identical frames a distance of zero', () => {
-    const tensor = constant(0.3)
+    const frame = flatFrame(90)
     const distance = signatureDistance(
-      frameSignature(tensor, SIZE),
-      frameSignature(tensor, SIZE),
+      frameSignature(frame, REGION),
+      frameSignature(frame, REGION),
     )
     expect(distance).toBeCloseTo(0, 6)
   })
 
   it('separates a cut from a small change', () => {
-    const base = constant(-0.5)
-
-    const nudged = Float32Array.from(base, (v) => v + 0.01)
-    const cut = constant(0.8)
+    const base = flatFrame(90)
+    const nudged = flatFrame(91) // ~0.008 in [-1, 1] units
+    const cut = flatFrame(220)
 
     const small = signatureDistance(
-      frameSignature(base, SIZE),
-      frameSignature(nudged, SIZE),
+      frameSignature(base, REGION),
+      frameSignature(nudged, REGION),
     )
     const large = signatureDistance(
-      frameSignature(base, SIZE),
-      frameSignature(cut, SIZE),
+      frameSignature(base, REGION),
+      frameSignature(cut, REGION),
     )
 
     // The default scene-change threshold is 0.05, and it has to sit between
     // these two for `sharedResidual` to recompute on cuts but not on drift.
     expect(small).toBeLessThan(0.05)
     expect(large).toBeGreaterThan(0.05)
+  })
+
+  it('reads only inside the region', () => {
+    // Everything outside the region differs; the signature must not notice.
+    const a = flatFrame(90)
+    const b = flatFrame(90)
+    const region = { x: 0, y: 0, width: 8, height: 8 }
+    for (let i = 8 * WIDTH; i < WIDTH * HEIGHT; i++) b.data[i * 4] = 255
+
+    expect(
+      signatureDistance(frameSignature(a, region), frameSignature(b, region)),
+    ).toBeCloseTo(0, 6)
   })
 })

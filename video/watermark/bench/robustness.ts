@@ -22,7 +22,7 @@ import { spawn } from 'node:child_process'
 
 import { Watermarker } from '../src/watermarker'
 import { DataLayer, PAYLOAD_BITS } from '../src/datalayer'
-import { packPayload } from '../src/payload'
+import { packPayload, unpackPayload } from '../src/payload'
 import type { Payload } from '../src/payload'
 import { probe, readFrames, writeFrames } from '../src/node/ffmpeg'
 import { benchDocument } from './document'
@@ -124,6 +124,10 @@ async function rawBits(
   return { bits, used }
 }
 
+function samePayload(a: Payload, b: Payload): boolean {
+  return a.templateId === b.templateId && (a.renderId ?? 0) === (b.renderId ?? 0)
+}
+
 function accuracy(actual: Uint8Array, expected: Uint8Array): number {
   let same = 0
   for (let i = 0; i < expected.length; i++) if (actual[i] === expected[i]) same += 1
@@ -209,10 +213,12 @@ async function main(): Promise<void> {
       const { bits } = await rawBits(wm, current, 16)
       const acc = accuracy(bits, expected)
       const decoded = new DataLayer().decode(bits)
+      // Compare the payload rather than a hard-coded bit range: the fallback
+      // decoder may land on a different schema, whose data bits are a
+      // different width.
       const recovered =
         decoded.valid &&
-        JSON.stringify(decoded.data.slice(0, 61)) ===
-          JSON.stringify(expected.slice(0, 61))
+        samePayload(unpackPayload(decoded.data, decoded.schema), PAYLOAD)
 
       results.push({ name: condition.name, accuracy: acc, recovered })
       console.log(

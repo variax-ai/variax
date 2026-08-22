@@ -90,8 +90,10 @@ for this style of watermark:
 | Re-encoded twice | 100% | yes |
 | *Control: unwatermarked* | *58%* | *no* |
 
-Mean PSNR 48.1 dB. The control row is the important one — it lands near the 50%
-chance level, which is what shows the table above is measuring a real signal.
+Mean PSNR 48.1 dB, at 31.5ms per 1080p frame with the default strategy.
+
+The control row is the important one — it lands near the 50% chance level, which
+is what shows the table above is measuring a real signal.
 
 ## Verification
 
