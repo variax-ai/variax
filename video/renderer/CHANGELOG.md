@@ -1,5 +1,11 @@
 # @variax-ai/video-renderer
 
+## 0.1.1
+
+### Patch Changes
+
+- @variax-ai/video-schema@0.1.1
+
 ## 0.1.0
 
 ### Minor Changes
