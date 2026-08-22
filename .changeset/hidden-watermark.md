@@ -1,5 +1,5 @@
 ---
-"@variax-ai/video-watermark": minor
+"@variax-ai/video-watermark": patch
 ---
 
 Add `@variax-ai/video-watermark`: a hidden mark carrying the template id
