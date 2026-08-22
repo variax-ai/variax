@@ -55,16 +55,32 @@ The main entry runs in a browser: install `onnxruntime-web` instead of
 entry for a browser target on every test run, so this stays true rather than
 being a claim in a README.
 
-Two things to know:
+Measured in Chrome on the WASM backend, 1280x720, single-threaded:
 
-- **`cacheDir` is Node-only.** In a browser the models are fetched every time
-  unless you pass `models` yourself, or supply your own `runtime`. Adobe's model
-  host sends `access-control-allow-origin: *`, so the fetch itself works from a
-  page.
-- **The file helpers are not available.** `@variax-ai/video-watermark/node`
-  shells out to ffmpeg. In a browser, decode frames yourself (`<video>` +
-  `canvas`, or `WebCodecs`) and use `embedFrames` / `extract` directly — they
-  take any `ImageData`.
+| | |
+|---|---|
+| Model load | ~2.5s from a local host (~64MB from Adobe's) |
+| First frame (includes one inference) | ~0.8–1.3s |
+| Subsequent frames in a shot | **~74ms/frame** |
+| Extract from one frame | ~0.3s |
+
+The per-frame figure is low for the same reason it is in Node: `sharedResidual`
+runs the encoder once per shot, and the rest is plain arithmetic. A 30s 30fps
+clip is roughly a minute of embedding.
+
+Three things to know:
+
+- **There is no video-in, video-out path in the browser.** This package
+  watermarks *frames*. Under Node, `watermarkFile` wires ffmpeg up for you; in a
+  browser you supply decode and encode yourself — `<video>`+canvas or
+  `WebCodecs.VideoDecoder` in, `VideoEncoder` plus a muxer (or `MediaRecorder`)
+  out — and put `embedFrames` in the middle. It accepts any `ImageData`.
+- **`cacheDir` is Node-only.** In a browser the models are refetched unless you
+  pass `models` yourself or supply your own `runtime`. Adobe's host sends
+  `access-control-allow-origin: *`, so fetching from a page works.
+- **Re-encoding is where the mark is at risk**, not the browser. Whatever
+  encoder you pick has to preserve the residual; the measured robustness table
+  below assumes something in the quality range of x264 at CRF 23 or better.
 
 ## The payload is an identifier, not metadata
 
