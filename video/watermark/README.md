@@ -55,6 +55,17 @@ The main entry runs in a browser: install `onnxruntime-web` instead of
 entry for a browser target on every test run, so this stays true rather than
 being a claim in a README.
 
+If you already have an ort instance — a shared WASM build, WebGPU, one in a
+worker — adapt it rather than letting the package import its own:
+
+```ts
+import * as ort from 'onnxruntime-web'
+import { Watermarker, createRuntime } from '@variax-ai/video-watermark'
+
+ort.env.wasm.numThreads = 1
+const wm = await Watermarker.create({ runtime: createRuntime(ort) })
+```
+
 Measured in Chrome on the WASM backend, 1280x720, single-threaded:
 
 | | |
@@ -143,6 +154,19 @@ download ~64MB:
 ```sh
 VARIAX_WATERMARK_E2E=1 npm test
 ```
+
+Browser support is covered at three levels, because each catches something the
+others cannot:
+
+| Check | Catches | Automated |
+|---|---|---|
+| `browser.test.ts` | Node builtins reaching the browser entry | yes |
+| `runtime-web.test.ts` | the ort adapter diverging from `onnxruntime-web` | yes (gated) |
+| `npm run check:browser` | anything only a real browser engine shows | no — reports PASS/FAIL for a human |
+
+`check:browser` serves a page that embeds and extracts through the real
+`createRuntime` path. It reuses the cached models, so run the gated tests once
+first to populate them.
 
 ## Licence
 
