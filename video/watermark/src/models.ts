@@ -137,11 +137,23 @@ export function getDefaultRuntime(): Promise<Runtime> {
   return defaultRuntime
 }
 
+/**
+ * Built at runtime so bundlers cannot see it.
+ *
+ * The on-disk cache below is Node-only and guarded by `isNode()`, but a static
+ * `import('node:fs/promises')` is resolved by bundlers at *build* time, not run
+ * time — so a browser build fails on a branch it would never execute. tsup also
+ * strips the `node:` prefix, turning it into a bare `"fs/promises"` specifier
+ * that looks like a missing npm package. Composing the specifier keeps this
+ * entry point genuinely browser-safe.
+ */
+const NODE_PREFIX = 'node:'
+
 async function cachePathFor(
   cacheDir: string,
   filename: string,
 ): Promise<string> {
-  const path = await import('node:path')
+  const path = await import(/* @vite-ignore */ `${NODE_PREFIX}path`)
   return path.join(cacheDir, filename)
 }
 
@@ -153,7 +165,7 @@ export async function loadModelBytes(
   const { cacheDir, modelsUrl = DEFAULT_MODELS_URL } = options
 
   if (cacheDir && isNode()) {
-    const fs = await import('node:fs/promises')
+    const fs = await import(/* @vite-ignore */ `${NODE_PREFIX}fs/promises`)
     const target = await cachePathFor(cacheDir, filename)
     try {
       return new Uint8Array(await fs.readFile(target))

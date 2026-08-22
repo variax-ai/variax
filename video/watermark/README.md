@@ -48,6 +48,24 @@ await watermarkFile(wm, 'in.mp4', 'out.mp4', { templateId: 42 })
 const found = await extractFile(wm, 'out.mp4')
 ```
 
+## Browser support
+
+The main entry runs in a browser: install `onnxruntime-web` instead of
+`onnxruntime-node` and it works unchanged. `src/browser.test.ts` bundles the
+entry for a browser target on every test run, so this stays true rather than
+being a claim in a README.
+
+Two things to know:
+
+- **`cacheDir` is Node-only.** In a browser the models are fetched every time
+  unless you pass `models` yourself, or supply your own `runtime`. Adobe's model
+  host sends `access-control-allow-origin: *`, so the fetch itself works from a
+  page.
+- **The file helpers are not available.** `@variax-ai/video-watermark/node`
+  shells out to ffmpeg. In a browser, decode frames yourself (`<video>` +
+  `canvas`, or `WebCodecs`) and use `embedFrames` / `extract` directly — they
+  take any `ImageData`.
+
 ## The payload is an identifier, not metadata
 
 The watermark carries 100 bits: payload, error correction, and a 4-bit schema
