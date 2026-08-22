@@ -45,12 +45,14 @@ export {
   DEFAULT_MODELS_URL,
   DEFAULT_VARIANT,
   VARIANTS,
+  createRuntime,
   loadModelBytes,
   loadModels,
 } from './models'
 export type {
   LoadedModels,
   ModelOptions,
+  OrtModule,
   Runtime,
   Session,
   TensorLike,

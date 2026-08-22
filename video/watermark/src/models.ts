@@ -78,11 +78,8 @@ function isNode(): boolean {
   )
 }
 
-/**
- * Adapt an `onnxruntime-*` module to the narrow `Runtime` shape above, so the
- * rest of the package never touches the ort API directly.
- */
-function adaptOrt(ort: {
+/** The slice of the `onnxruntime-*` API this package uses. */
+export interface OrtModule {
   InferenceSession: {
     create(model: Uint8Array, options?: unknown): Promise<unknown>
   }
@@ -91,10 +88,36 @@ function adaptOrt(ort: {
     data: Float32Array,
     dims: readonly number[],
   ) => unknown
-}): Runtime {
+}
+
+/**
+ * Adapt an `onnxruntime-*` module to the narrow `Runtime` shape above, so the
+ * rest of the package never touches the ort API directly.
+ *
+ * Exported because hosts often have an ort instance already — a shared WASM
+ * build, a WebGPU session, one living in a worker — and configuring it is their
+ * business, not this package's. Pass the module here rather than reimplementing
+ * the wrapper:
+ *
+ * ```ts
+ * import * as ort from 'onnxruntime-web'
+ * ort.env.wasm.numThreads = 1
+ * const wm = await Watermarker.create({ runtime: createRuntime(ort) })
+ * ```
+ *
+ * @param sessionOptions passed straight through to `InferenceSession.create`,
+ *        for things like `executionProviders`.
+ */
+export function createRuntime(
+  ort: OrtModule,
+  sessionOptions?: unknown,
+): Runtime {
   return {
     async createSession(model: Uint8Array): Promise<Session> {
-      const session = (await ort.InferenceSession.create(model)) as {
+      const session = (await ort.InferenceSession.create(
+        model,
+        sessionOptions,
+      )) as {
         run(feeds: Record<string, unknown>): Promise<Record<string, TensorLike>>
       }
       return {
@@ -119,7 +142,7 @@ export function getDefaultRuntime(): Promise<Runtime> {
     try {
       // Indirection keeps bundlers from trying to resolve both builds eagerly.
       const imported = await import(/* @vite-ignore */ moduleName)
-      return adaptOrt(imported.default ?? imported)
+      return createRuntime(imported.default ?? imported)
     } catch (cause) {
       throw new Error(
         `${moduleName} is required to run the watermark models. Install it, ` +
