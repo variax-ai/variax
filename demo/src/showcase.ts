@@ -37,9 +37,9 @@ export const showcaseDocument: VideoDocument = {
     accent: '#f6c44d',
     ink: '#f5f5f5',
     muted: '#a3a3a3',
-    card: '#161331',
-    edge: '#2a2550',
-    bg: '#0a0a0a',
+    card: '#241e4d',
+    edge: '#3d3676',
+    bg: '#141029',
   },
 
   defs: {
@@ -64,7 +64,7 @@ export const showcaseDocument: VideoDocument = {
         size: [460, 600],
         radius: 32,
         position: [270, 470],
-        fill: '#100d24',
+        fill: '#1c1740',
         stroke: { color: '$token:edge', width: 2 },
       },
       {
@@ -86,7 +86,7 @@ export const showcaseDocument: VideoDocument = {
       endMs: 3600,
       background: {
         type: 'linearGradient',
-        stops: ['#161233', '#0a0a0a'],
+        stops: ['#241d4d', '#141029'],
         angle: 120,
       },
       layers: [
@@ -279,7 +279,9 @@ export const showcaseDocument: VideoDocument = {
               font: { size: 15, weight: 700 },
               color: '#2a1f00',
               align: 'center',
-              position: [270, 646],
+              // Text is drawn from its middle, so this matches the pill's own
+              // centre — the two have to be the same number to sit concentric.
+              position: [270, 640],
             },
           ],
         },
@@ -290,7 +292,7 @@ export const showcaseDocument: VideoDocument = {
           font: { size: 15, weight: 600 },
           color: '$token:muted',
           align: 'center',
-          position: [270, 646],
+          position: [270, 640],
         },
         {
           type: 'shape',
@@ -314,7 +316,7 @@ export const showcaseDocument: VideoDocument = {
       endMs: 10800,
       background: {
         type: 'radialGradient',
-        stops: ['#1a1638', '#0a0a0a'],
+        stops: ['#272052', '#141029'],
       },
       layers: [
         {
