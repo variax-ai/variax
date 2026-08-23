@@ -15,7 +15,8 @@ variax/
 ├── video/
 │   ├── schema/          # @variax-ai/video-schema — canonical JSON Schema + generated TS/Go types
 │   ├── renderer/        # @variax-ai/video-renderer — Canvas2D renderer (browser + Node.js)
-│   └── extractor/       # @variax-ai/video-extractor — video → schema inference (scaffold)
+│   ├── extractor/       # @variax-ai/video-extractor — video → schema inference
+│   └── watermark/       # @variax-ai/video-watermark — forensic watermarking for frames
 ├── demo/                # @variax-ai/demo — static GitHub Pages demo site (private)
 ├── package.json         # npm workspaces root
 ├── tsconfig.base.json   # shared TypeScript config
@@ -43,11 +44,26 @@ Framework-agnostic Canvas2D renderer that interprets a `VideoDocument` JSON and 
 
 ### `@variax-ai/video-extractor` (`video/extractor/`)
 
-Video-to-schema inference — takes a video and extracts a `VideoDocument`. Currently a scaffold (stub only).
+Video-to-schema inference: samples frames, builds a prompt, parses and validates
+the reply. The model call itself is the consumer's — the package takes an `infer`
+function and makes no network call of its own.
+
+### `@variax-ai/video-watermark` (`video/watermark/`)
+
+Forensic watermarking: embeds an identifier into frame pixels so it survives
+re-encoding, and recovers it again. A TypeScript port of
+[adobe/trustmark](https://github.com/adobe/trustmark)'s pipeline against their
+ONNX models. Works on **pixels, not documents** — no dependency on the schema or
+the renderer. Runs in Node (`onnxruntime-node`) and in the browser
+(`onnxruntime-web`); `@variax-ai/video-watermark/node` adds ffmpeg-backed
+whole-file helpers. Models are fetched from Adobe's host on first use, not
+bundled.
 
 ### `@variax-ai/demo` (`demo/`)
 
-Static demo site (Vite), deployed to GitHub Pages. Shows the renderer in action and has a placeholder for the extractor.
+Static demo site (Vite), deployed to GitHub Pages. One tab per package: a live
+renderer with a vars panel, the extractor pipeline with the human standing in for
+the model, and the watermarker running on `onnxruntime-web`.
 
 ## Video schema design
 
