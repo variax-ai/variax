@@ -24,6 +24,8 @@ export function initRendererTab(): RendererTab {
   const sceneChips = $('scene-chips')
   const varsPanel = $('vars-panel')
 
+  const previewCol = canvas.closest('.col') as HTMLElement
+
   const ctx = canvas.getContext('2d')!
 
   let doc: VideoDocument | null = null
@@ -152,6 +154,9 @@ export function initRendererTab(): RendererTab {
     vars = defaultVars(next)
     canvas.width = next.width
     canvas.height = next.height
+    // The column is laid out from the frame's shape, so a pasted document of a
+    // different aspect resizes the controls under it along with the picture.
+    previewCol.style.setProperty('--preview-ar', String(next.width / next.height))
     scrub.max = String(next.durationMs)
     currentTime = Math.min(currentTime, next.durationMs)
     buildSceneChips(next)

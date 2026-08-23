@@ -65,7 +65,19 @@
       #json-input { min-height: 520px; flex: 1; }
 
       canvas { background: #000; border-radius: 8px; max-width: 100%; }
-      #preview-canvas { max-height: 520px; width: auto; align-self: flex-start; }
+
+      /* A portrait document is far narrower than the column's 380px basis, so
+         sizing the column from the frame keeps the scrub bar, the controls and
+         the scene chips exactly as wide as the picture they drive. The ratio
+         comes from the loaded document; the default is the showcase's 9:16. */
+      .col.preview {
+        --preview-h: 520px;
+        flex: 0 1 auto;
+        width: calc(var(--preview-h) * var(--preview-ar, 0.5625));
+        min-width: 0;
+        max-width: 100%;
+      }
+      #preview-canvas { width: 100%; height: auto; max-height: var(--preview-h); }
 
       .controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
       button {
@@ -171,7 +183,7 @@
         <div id="json-error" class="error"></div>
       </div>
 
-      <div class="col">
+      <div class="col preview">
         <label>Preview</label>
         <canvas id="preview-canvas" width="540" height="960"></canvas>
         <input id="scrub" type="range" min="0" max="1000" value="0" step="1" />
