@@ -34,7 +34,8 @@ npm run build                    # the workspace packages the demo imports
 npm run dev -w @variax-ai/demo
 ```
 
-`npm run build -w @variax-ai/demo` produces `demo/dist/`. CI builds with
-`CI=1`, which sets Vite's `base` to `/variax/` for Pages; locally it stays `/`.
+`npm run build -w @variax-ai/demo` produces `demo/dist/`. Any truthy `CI` in the
+environment — which GitHub Actions always sets — switches Vite's `base` to
+`/variax/` for Pages; locally it stays `/`.
 
 Deployment is `.github/workflows/deploy-demo.yml`, on every push to `main`.

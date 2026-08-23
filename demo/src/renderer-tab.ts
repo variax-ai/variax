@@ -127,7 +127,27 @@ export function initRendererTab(): RendererTab {
     )
   }
 
+  /**
+   * The minimum a document must have before anything is swapped out for it.
+   *
+   * Checked up front rather than let to throw halfway through `load`: a paste
+   * that is rejected must leave the tab drawing what it drew before, not a
+   * resized canvas and a `doc` the current drawer knows nothing about.
+   */
+  function assertRenderable(d: VideoDocument): void {
+    if (!Number.isFinite(d.width) || !Number.isFinite(d.height)) {
+      throw new Error('Document needs numeric width and height')
+    }
+    if (!Number.isFinite(d.durationMs) || d.durationMs <= 0) {
+      throw new Error('Document needs a positive durationMs')
+    }
+    if (!Array.isArray(d.scenes) || d.scenes.length === 0) {
+      throw new Error('Document needs at least one scene')
+    }
+  }
+
   function load(next: VideoDocument): void {
+    assertRenderable(next)
     doc = next
     vars = defaultVars(next)
     canvas.width = next.width

@@ -7,6 +7,17 @@ import ortWasmUrl from 'onnxruntime-web/ort-wasm-simd-threaded.wasm?url'
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T
 
+/**
+ * A number field's value when it is a usable positive number, else `fallback`.
+ *
+ * `Number('')` is 0, so an empty field reads as a deliberate zero unless it is
+ * rejected here — and zero strength embeds nothing at all.
+ */
+function positiveField(raw: string, fallback: number): number {
+  const value = Number(raw)
+  return raw.trim() !== '' && Number.isFinite(value) && value > 0 ? value : fallback
+}
+
 export interface WatermarkTabOptions {
   /** The frame to mark: whatever the renderer tab is currently showing. */
   sourceFrame(): { canvas: HTMLCanvasElement; timeMs: number } | null
@@ -28,6 +39,12 @@ export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
   const log = (line: string) => {
     lines = [...lines, line]
     logEl.textContent = lines.join('\n')
+  }
+  // Clears the panel too: a run that fails before its first `log` would
+  // otherwise show an error beside the previous run's results.
+  const clearLog = () => {
+    lines = []
+    logEl.textContent = ''
   }
 
   // Loading the models costs ~64MB, so the watermarker is built once and kept.
@@ -94,7 +111,7 @@ export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
   runBtn.addEventListener('click', () => {
     void (async () => {
       errorEl.textContent = ''
-      lines = []
+      clearLog()
       runBtn.disabled = true
       try {
         const frame = sourceFrame()
@@ -117,7 +134,11 @@ export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
         // `Frame` is structurally an ImageData, so a canvas frame goes straight in.
         const marked = await wm.embedFrame(src, payload, {
           schema: schemaSelect.value as never,
-          strength: Number(strength.value),
+          // `EmbedOptions.strength` falls back with `??`, so a 0 from an empty
+          // field would be taken as a real strength: no residual, a frame
+          // identical to the source, and an extraction failure that reads as a
+          // broken package rather than as bad input.
+          strength: positiveField(strength.value, 1),
         })
         log(`embedded in ${Math.round(performance.now() - embedStart)}ms`)
 

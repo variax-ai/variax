@@ -44,8 +44,9 @@ import Ajv from 'ajv'
 import schema from '@variax-ai/video-schema/json/v1.json' with { type: 'json' }
 import type { VideoDocument } from '@variax-ai/video-schema'
 
-const validate = new Ajv().compile<VideoDocument>(schema)
-if (!validate(untrusted)) throw new Error(new Ajv().errorsText(validate.errors))
+const ajv = new Ajv()
+const validate = ajv.compile<VideoDocument>(schema)
+if (!validate(untrusted)) throw new Error(ajv.errorsText(validate.errors))
 // `untrusted` is a VideoDocument from here on.
 ```
 
