@@ -1,5 +1,12 @@
 # @variax-ai/video-schema
 
+## 0.1.2
+
+### Patch Changes
+
+- 971a42a: Add package READMEs. npm ships README.md regardless of `files`, so this is what
+  makes each package's npm page show something other than "no description".
+
 ## 0.1.1
 
 ## 0.1.0
