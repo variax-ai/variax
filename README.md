@@ -8,8 +8,11 @@ A monorepo for the Variax platform — tools for declarative motion-graphics con
 |---------|------|-------------|
 | [`@variax-ai/video-schema`](video/schema/) | `video/schema/` | Canonical JSON Schema + generated TypeScript and Go types |
 | [`@variax-ai/video-renderer`](video/renderer/) | `video/renderer/` | Canvas2D renderer for VideoDocument (browser + Node.js) |
-| [`@variax-ai/video-extractor`](video/extractor/) | `video/extractor/` | Video → schema inference (scaffold) |
-| `@variax-ai/demo` | `demo/` | [Demo site](https://variax-ai.github.io/variax/) (GitHub Pages) |
+| [`@variax-ai/video-extractor`](video/extractor/) | `video/extractor/` | Video → schema inference, bring your own vision model |
+| [`@variax-ai/video-watermark`](video/watermark/) | `video/watermark/` | Forensic watermarking for video frames (browser + Node.js) |
+| [`@variax-ai/demo`](demo/) | `demo/` | [Demo site](https://variax-ai.github.io/variax/) (GitHub Pages) |
+
+Each package has its own README with the detail; what follows is the tour.
 
 ## Quick start
 
@@ -229,6 +232,61 @@ await Promise.all(
 Give each font asset a `fallback` naming a face you know is present, so a miss
 degrades to something chosen rather than to bare `sans-serif`.
 
+## Extracting a document from a video
+
+The reverse direction: sample frames, ask a vision model what it is looking at,
+get a `VideoDocument` back. The package makes no network call of its own — you
+supply the `infer` function, so the provider, the key, the retries and the cost
+stay yours.
+
+```sh
+npm install @variax-ai/video-extractor
+```
+```typescript
+import { extractDocument } from "@variax-ai/video-extractor";
+
+const doc = await extractDocument({
+  source: videoElement,
+  infer: async ({ frames, prompt }) => callYourVisionModel(prompt, frames),
+});
+```
+
+Frames come from an `HTMLVideoElement` in the browser, or from any object
+implementing `FrameSource` — three methods, no DOM — which is how an
+ffmpeg-backed source in Node, or a directory of PNGs in a test, plugs in.
+`buildPrompt`, `parseResponse` and `validateDocument` are exported separately,
+since the useful piece is rarely the whole pipeline.
+
+The result is a plausible reconstruction, not the original timeline. Treat it as
+a starting draft, and validate it against the schema before rendering it.
+
+## Watermarking the output
+
+`@variax-ai/video-watermark` embeds an identifier into the *pixels* of a frame,
+so it survives export, re-encoding and rescaling and can be recovered from the
+delivered video. It is built on [adobe/trustmark](https://github.com/adobe/trustmark),
+and works on frames rather than documents — it neither knows nor cares whether
+the video came from a `VideoDocument`.
+
+```sh
+npm install @variax-ai/video-watermark onnxruntime-node
+```
+```typescript
+import { Watermarker } from "@variax-ai/video-watermark";
+import { watermarkFile } from "@variax-ai/video-watermark/node";
+
+const wm = await Watermarker.create({ cacheDir: ".models" });
+await watermarkFile(wm, "in.mp4", "out.mp4", { templateId: 42, renderId: 7 });
+```
+
+The payload is an **identifier, not metadata** — under 10 bytes, so resolve the
+real record from `templateId` against your own catalogue. On a real 1080p Variax
+render the mark survives H.264 down to CRF 28, a 720p downscale and a 10% crop
+at 100% bit accuracy, at ~31ms per frame and 48.1 dB PSNR; the same entry point
+runs in a browser on `onnxruntime-web`. See
+[`video/watermark/`](video/watermark/) for the full robustness table and the
+browser notes.
+
 ## Development
 
 ```sh
@@ -236,6 +294,7 @@ npm run build            # build all packages
 npm test                 # test all packages
 npm run typecheck        # type-check all packages
 make generate            # regenerate TS + Go types from JSON Schema
+make check               # fail if the generated types are stale
 npm run dev -w @variax-ai/demo   # start demo dev server
 ```
 

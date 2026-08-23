@@ -6,80 +6,71 @@
     <title>Variax Demo</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font-family: system-ui, sans-serif; background: #0a0a0a; color: #e5e5e5; }
+      :root {
+        --bg: #0a0a0a;
+        --panel: #171717;
+        --edge: #262626;
+        --ink: #e5e5e5;
+        --muted: #a3a3a3;
+        --dim: #737373;
+        --brand: #6c4df6;
+        --mono: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+      }
+      body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--ink); }
 
       header {
         padding: 1rem 2rem;
-        border-bottom: 1px solid #262626;
+        border-bottom: 1px solid var(--edge);
         display: flex;
-        align-items: center;
+        align-items: baseline;
         gap: 1rem;
       }
       header h1 { font-size: 1.25rem; font-weight: 600; }
+      header p { font-size: 0.8125rem; color: var(--dim); }
+      header a { color: var(--muted); font-size: 0.8125rem; margin-left: auto; }
 
       .tabs {
         display: flex;
         gap: 0.5rem;
         padding: 0 2rem;
-        border-bottom: 1px solid #262626;
+        border-bottom: 1px solid var(--edge);
       }
       .tab {
         padding: 0.75rem 1rem;
         cursor: pointer;
         border-bottom: 2px solid transparent;
-        color: #a3a3a3;
+        color: var(--muted);
         font-size: 0.875rem;
       }
-      .tab.active {
-        color: #e5e5e5;
-        border-bottom-color: #6c4df6;
-      }
+      .tab.active { color: var(--ink); border-bottom-color: var(--brand); }
 
       .panel { display: none; padding: 2rem; }
-      .panel.active { display: flex; gap: 2rem; }
+      .panel.active { display: flex; gap: 2rem; align-items: flex-start; flex-wrap: wrap; }
 
-      .editor-pane {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 0.5rem;
-      }
-      .editor-pane textarea {
-        flex: 1;
-        min-height: 400px;
-        background: #171717;
-        color: #e5e5e5;
-        border: 1px solid #262626;
+      .col { flex: 1 1 380px; display: flex; flex-direction: column; gap: 0.75rem; min-width: 320px; }
+      .col.narrow { flex: 0 1 340px; }
+
+      textarea {
+        background: var(--panel);
+        color: var(--ink);
+        border: 1px solid var(--edge);
         border-radius: 8px;
         padding: 1rem;
-        font-family: 'SF Mono', 'Fira Code', monospace;
+        font-family: var(--mono);
         font-size: 0.8125rem;
-        resize: none;
+        resize: vertical;
         tab-size: 2;
+        width: 100%;
       }
+      #json-input { min-height: 520px; flex: 1; }
 
-      .preview-pane {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 1rem;
-      }
-      canvas {
-        background: #000;
-        border-radius: 8px;
-        max-height: 500px;
-        width: auto;
-      }
+      canvas { background: #000; border-radius: 8px; max-width: 100%; }
+      #preview-canvas { max-height: 520px; width: auto; }
 
-      .controls {
-        display: flex;
-        gap: 0.5rem;
-        align-items: center;
-      }
+      .controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
       button {
         padding: 0.5rem 1rem;
-        background: #6c4df6;
+        background: var(--brand);
         color: #fff;
         border: none;
         border-radius: 6px;
@@ -88,68 +79,238 @@
       }
       button:hover { background: #5b3de6; }
       button:disabled { opacity: 0.5; cursor: not-allowed; }
+      button.ghost { background: transparent; border: 1px solid var(--edge); color: var(--muted); }
+      button.ghost:hover { background: var(--panel); }
 
-      .time-display {
-        font-family: 'SF Mono', 'Fira Code', monospace;
-        font-size: 0.875rem;
-        color: #a3a3a3;
+      input[type='range'] { width: 100%; accent-color: var(--brand); }
+      input[type='text'], input[type='number'], select {
+        background: var(--panel);
+        color: var(--ink);
+        border: 1px solid var(--edge);
+        border-radius: 6px;
+        padding: 0.4rem 0.5rem;
+        font-size: 0.8125rem;
+        width: 100%;
       }
+      input[type='checkbox'] { accent-color: var(--brand); width: 1rem; height: 1rem; }
+      input[type='file'] { font-size: 0.8125rem; color: var(--muted); }
 
-      .placeholder {
-        flex: 1;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 400px;
-        background: #171717;
-        border: 1px dashed #404040;
+      .mono, .time-display { font-family: var(--mono); font-size: 0.8125rem; color: var(--muted); }
+
+      label { font-size: 0.8125rem; font-weight: 500; color: var(--muted); }
+      .hint { font-size: 0.8125rem; color: var(--dim); line-height: 1.5; }
+      .hint code { font-family: var(--mono); color: var(--muted); }
+
+      .box {
+        background: var(--panel);
+        border: 1px solid var(--edge);
         border-radius: 8px;
-        color: #737373;
-        font-size: 1rem;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      .field { display: grid; grid-template-columns: 1fr 1.4fr; gap: 0.5rem; align-items: center; }
+      .field label { font-weight: 400; }
+
+      .chips { display: flex; gap: 0.375rem; flex-wrap: wrap; }
+      .chip {
+        font-size: 0.75rem;
+        font-family: var(--mono);
+        padding: 0.25rem 0.5rem;
+        border: 1px solid var(--edge);
+        border-radius: 999px;
+        color: var(--muted);
+        cursor: pointer;
+        background: transparent;
+      }
+      .chip.on { color: var(--ink); border-color: var(--brand); }
+
+      .error { color: #ef4444; font-size: 0.8125rem; font-family: var(--mono); min-height: 1rem; }
+
+      pre.log {
+        background: #0f0f0f;
+        border: 1px solid var(--edge);
+        border-radius: 8px;
+        padding: 0.75rem;
+        font-family: var(--mono);
+        font-size: 0.75rem;
+        color: var(--muted);
+        max-height: 260px;
+        overflow: auto;
+        white-space: pre-wrap;
       }
 
-      .error {
-        color: #ef4444;
-        font-size: 0.8125rem;
-        font-family: 'SF Mono', 'Fira Code', monospace;
-      }
+      .frames { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+      .frames img { height: 72px; border-radius: 4px; border: 1px solid var(--edge); }
 
-      label {
-        font-size: 0.8125rem;
-        font-weight: 500;
-        color: #a3a3a3;
-      }
+      .canvas-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
+      .canvas-row figure { display: flex; flex-direction: column; gap: 0.375rem; min-width: 0; }
+      .canvas-row figcaption { font-size: 0.75rem; color: var(--dim); }
+      .canvas-row canvas { width: 100%; height: auto; }
     </style>
   </head>
   <body>
     <header>
       <h1>Variax Demo</h1>
+      <p>Declarative motion graphics: render, extract, watermark.</p>
+      <a href="https://github.com/variax-ai/variax">github.com/variax-ai/variax</a>
     </header>
+
     <div class="tabs">
       <div class="tab active" data-tab="renderer">Renderer</div>
       <div class="tab" data-tab="extractor">Extractor</div>
+      <div class="tab" data-tab="watermark">Watermark</div>
     </div>
+
+    <!-- ── Renderer ──────────────────────────────────────────────────── -->
     <div id="renderer-panel" class="panel active">
-      <div class="editor-pane">
-        <label>VideoDocument JSON</label>
+      <div class="col">
+        <label for="json-input">VideoDocument JSON</label>
         <textarea id="json-input" spellcheck="false"></textarea>
         <div id="json-error" class="error"></div>
       </div>
-      <div class="preview-pane">
+
+      <div class="col">
         <label>Preview</label>
         <canvas id="preview-canvas" width="540" height="960"></canvas>
+        <input id="scrub" type="range" min="0" max="1000" value="0" step="1" />
         <div class="controls">
           <button id="play-btn">Play</button>
-          <button id="reset-btn">Reset</button>
+          <button id="reset-btn" class="ghost">Reset</button>
           <span class="time-display" id="time-display">0.000s</span>
         </div>
+        <div class="chips" id="scene-chips"></div>
+      </div>
+
+      <div class="col narrow">
+        <label>Vars</label>
+        <div class="box" id="vars-panel">
+          <p class="hint">This document declares no <code>vars</code>.</p>
+        </div>
+        <p class="hint">
+          Vars are supplied at render time, not baked into the document. They fill
+          <code>$var:</code> references and decide which <code>visibleIf</code> layers
+          exist at all — the document itself never changes.
+        </p>
       </div>
     </div>
+
+    <!-- ── Extractor ─────────────────────────────────────────────────── -->
     <div id="extractor-panel" class="panel">
-      <div class="placeholder">
-        Video-to-schema extraction — coming soon
+      <div class="col narrow">
+        <label>Source video</label>
+        <div class="box">
+          <input id="video-input" type="file" accept="video/*" />
+          <video id="source-video" controls muted playsinline style="width: 100%; border-radius: 6px; background: #000"></video>
+          <div class="field">
+            <label for="sample-count">Frames to sample</label>
+            <input id="sample-count" type="number" min="1" max="20" value="6" />
+          </div>
+          <button id="sample-btn" disabled>Sample frames &amp; build prompt</button>
+        </div>
+        <p class="hint">
+          This runs the real <code>@variax-ai/video-extractor</code> pipeline in your
+          browser — everything except the model call, which the package deliberately
+          leaves to you. Frames never leave the page.
+        </p>
+      </div>
+
+      <div class="col">
+        <label>Sampled frames</label>
+        <div class="frames" id="frame-strip"></div>
+        <label for="prompt-output">Prompt <span class="mono" id="prompt-meta"></span></label>
+        <textarea id="prompt-output" rows="16" readonly spellcheck="false"></textarea>
+        <div class="controls">
+          <button id="copy-prompt" class="ghost" disabled>Copy prompt</button>
+        </div>
+      </div>
+
+      <div class="col">
+        <label for="model-reply">Model reply</label>
+        <textarea id="model-reply" rows="16" spellcheck="false" placeholder="Paste what the model returned. Code fences and surrounding prose are fine — parseResponse digs the JSON out."></textarea>
+        <div class="controls">
+          <button id="parse-btn">Parse, validate &amp; open in renderer</button>
+        </div>
+        <div id="extractor-error" class="error"></div>
+        <p class="hint">
+          <code>validateDocument</code> is a structural check — positive dimensions, at
+          least one scene, recognised layer types. Run the result against the JSON
+          Schema for a real validation.
+        </p>
       </div>
     </div>
+
+    <!-- ── Watermark ─────────────────────────────────────────────────── -->
+    <div id="watermark-panel" class="panel">
+      <div class="col narrow">
+        <label>Payload</label>
+        <div class="box">
+          <div class="field">
+            <label for="template-id">templateId</label>
+            <input id="template-id" type="number" min="0" value="424242" />
+          </div>
+          <div class="field">
+            <label for="render-id">renderId</label>
+            <input id="render-id" type="number" min="0" value="7" />
+          </div>
+          <div class="field">
+            <label for="wm-schema">schema</label>
+            <select id="wm-schema">
+              <option value="BCH_SUPER">BCH_SUPER — 40 bits, 8 flips</option>
+              <option value="BCH_5" selected>BCH_5 — 61 bits, 5 flips</option>
+              <option value="BCH_4">BCH_4 — 68 bits, 4 flips</option>
+              <option value="BCH_3">BCH_3 — 75 bits, 3 flips</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="wm-strength">strength</label>
+            <input id="wm-strength" type="number" min="0.1" max="2" step="0.1" value="1" />
+          </div>
+          <button id="wm-run">Embed &amp; recover this frame</button>
+        </div>
+        <p class="hint">
+          Runs <code>@variax-ai/video-watermark</code> on <code>onnxruntime-web</code>,
+          against the frame the renderer tab is currently showing. The ONNX models are
+          ~64MB and are fetched from Adobe's host the first time you press the button —
+          nothing downloads until you do.
+        </p>
+        <p class="hint">
+          The payload is an <em>identifier</em>, not metadata: under 10 bytes, meant to
+          be resolved against your own catalogue.
+        </p>
+      </div>
+
+      <div class="col">
+        <label>Frames</label>
+        <div class="canvas-row">
+          <figure>
+            <canvas id="wm-source" width="270" height="480"></canvas>
+            <figcaption>source</figcaption>
+          </figure>
+          <figure>
+            <canvas id="wm-marked" width="270" height="480"></canvas>
+            <figcaption>watermarked</figcaption>
+          </figure>
+          <figure>
+            <canvas id="wm-diff" width="270" height="480"></canvas>
+            <figcaption>difference &times;20</figcaption>
+          </figure>
+        </div>
+        <p class="hint">
+          The middle frame is the one you would ship. The right-hand frame is the
+          difference between the two, amplified twentyfold — at 1&times; it is
+          invisible, which is the point.
+        </p>
+      </div>
+
+      <div class="col">
+        <label>Result</label>
+        <pre class="log" id="wm-log">Idle.</pre>
+        <div id="wm-error" class="error"></div>
+      </div>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
