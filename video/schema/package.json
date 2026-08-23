@@ -1,6 +1,6 @@
 {
   "name": "@variax-ai/video-schema",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Canonical JSON Schema for the Variax video format, with generated TypeScript types",
   "repository": {
     "type": "git",
