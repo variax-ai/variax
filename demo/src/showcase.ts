@@ -32,6 +32,8 @@ export const showcaseDocument: VideoDocument = {
   tokens: {
     brand: '#6c4df6',
     brandSoft: '#8b74ff',
+    brandLift: '#9d86ff',
+    brandSheen: '#c9baff',
     accent: '#f6c44d',
     ink: '#f5f5f5',
     muted: '#a3a3a3',
@@ -98,24 +100,49 @@ export const showcaseDocument: VideoDocument = {
             type: 'shape',
             shape: 'ellipse',
             size: [16, 16],
-            fill: '$token:brandSoft',
+            fill: '$token:brandLift',
             transform: {
               position: {
                 x: { generator: { fn: 'sine', params: { from: 90, to: 450, periodMs: 5200 } } },
                 y: { generator: { fn: 'pulse', params: { from: 1020, to: -40, periodMs: 2000 } } },
               },
-              opacity: 0.5,
+              opacity: 0.65,
             },
           },
         },
+        // The mark is a group so the face and the sheen on top of it pop in
+        // as one object. Shape fills are flat colours, so the lit look is
+        // built the declarative way — a bright shape over a lighter face —
+        // rather than asking for a gradient the format does not carry.
         {
-          type: 'shape',
-          shape: 'roundedRect',
-          size: [200, 200],
-          radius: 44,
-          fill: '$token:brand',
-          effects: [
-            { type: 'dropShadow', color: '#6c4df6aa', blur: 40, offsetY: 12 },
+          type: 'group',
+          children: [
+            {
+              type: 'shape',
+              shape: 'roundedRect',
+              size: [200, 200],
+              radius: 44,
+              position: [0, 0],
+              fill: '$token:brandLift',
+              stroke: { color: '$token:brandSheen', width: 2 },
+              effects: [
+                { type: 'dropShadow', color: '#9d86ffcc', blur: 52, offsetY: 14 },
+              ],
+            },
+            // Blurred, so it reads as light falling on the face rather than
+            // as a second rounded rect sitting on it. Kept well inside the
+            // 200x200 face: the blur spreads, and the corner radius means a
+            // wider sheen would haze out past the mark's own edge.
+            {
+              type: 'shape',
+              shape: 'roundedRect',
+              size: [124, 52],
+              radius: 26,
+              position: [0, -46],
+              fill: '$token:brandSheen',
+              effects: [{ type: 'gaussianBlur', radius: 14 }],
+              transform: { opacity: 0.5 },
+            },
           ],
           transform: {
             position: [270, 380],
