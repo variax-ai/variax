@@ -31,13 +31,25 @@ function fakeRuntime(): Runtime & { created: Uint8Array[] } {
     async createSession(model: Uint8Array): Promise<Session> {
       created.push(model)
       return {
-        async run(feeds: Record<string, TensorLike>) {
+        async run(
+          feeds: Record<string, TensorLike>,
+        ): Promise<Record<string, TensorLike>> {
           // The encoder is fed an image; the decoder is fed one too, but only
           // the encoder gets a second, much smaller bits tensor.
           const isEncoder = Object.keys(feeds).length > 1
           return isEncoder
-            ? { [ENCODER_OUTPUT]: { data: new Float32Array(3 * SIZE * SIZE), dims: [1, 3, SIZE, SIZE] } }
-            : { [DECODER_OUTPUT]: { data: new Float32Array(PAYLOAD_BITS), dims: [1, PAYLOAD_BITS] } }
+            ? {
+                [ENCODER_OUTPUT]: {
+                  data: new Float32Array(3 * SIZE * SIZE),
+                  dims: [1, 3, SIZE, SIZE],
+                },
+              }
+            : {
+                [DECODER_OUTPUT]: {
+                  data: new Float32Array(PAYLOAD_BITS),
+                  dims: [1, PAYLOAD_BITS],
+                },
+              }
         },
       }
     },
