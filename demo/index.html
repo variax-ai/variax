@@ -284,8 +284,9 @@
         <p class="hint">
           Runs <code>@variax-ai/video-watermark</code> on <code>onnxruntime-web</code>,
           against the frame the renderer tab is currently showing. The ONNX models are
-          ~64MB and are fetched from Adobe's host the first time you press the button —
-          nothing downloads until you do.
+          fetched from Adobe's host the first time you press the button — nothing
+          downloads until you do. Embedding needs only the 17.3MB encoder; the 47.4MB
+          decoder follows, because this demo recovers the mark as well as embeds it.
         </p>
         <p class="hint">
           The payload is an <em>identifier</em>, not metadata: under 10 bytes, meant to

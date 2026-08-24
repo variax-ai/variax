@@ -228,12 +228,21 @@ export interface LoadedModels {
   variant: Variant
   config: VariantConfig
   encoder: Session
-  decoder: Session
+  /**
+   * The decoder, loaded on first call and memoised after.
+   *
+   * Embedding never runs the decoder, and it is by far the larger of the two
+   * files — so a host that only watermarks frames never pays for it.
+   */
+  decoder(): Promise<Session>
 }
 
 /**
- * Load both models. Sessions are expensive to build — create this once and
+ * Load the models. Sessions are expensive to build — create this once and
  * reuse it across every frame and every video.
+ *
+ * Only the encoder is built here. The decoder is fetched the first time
+ * something extracts, because embedding never touches it.
  */
 export async function loadModels(
   options: ModelOptions = {},
@@ -241,15 +250,32 @@ export async function loadModels(
   const variant = options.variant ?? DEFAULT_VARIANT
   const runtime = options.runtime ?? (await getDefaultRuntime())
 
-  const [encoderBytes, decoderBytes] = await Promise.all([
-    options.models?.encoder ?? loadModelBytes(`encoder_${variant}.onnx`, options),
-    options.models?.decoder ?? loadModelBytes(`decoder_${variant}.onnx`, options),
-  ])
+  const encoderBytes =
+    options.models?.encoder ?? (await loadModelBytes(`encoder_${variant}.onnx`, options))
+  const encoder = await runtime.createSession(encoderBytes)
 
-  const [encoder, decoder] = await Promise.all([
-    runtime.createSession(encoderBytes),
-    runtime.createSession(decoderBytes),
-  ])
+  // The promise, not the session, so two concurrent extracts share one
+  // download rather than racing two of them.
+  let decoder: Promise<Session> | undefined
 
-  return { variant, config: VARIANTS[variant], encoder, decoder }
+  return {
+    variant,
+    config: VARIANTS[variant],
+    encoder,
+    decoder(): Promise<Session> {
+      decoder ??= (async () => {
+        const bytes =
+          options.models?.decoder ??
+          (await loadModelBytes(`decoder_${variant}.onnx`, options))
+        return runtime.createSession(bytes)
+      })().catch((error: unknown) => {
+        // Only successes are worth memoising, for the same reason as
+        // `getDefaultRuntime` above: a transient network failure should not
+        // make extraction permanently impossible for this instance.
+        decoder = undefined
+        throw error
+      })
+      return decoder
+    },
+  }
 }

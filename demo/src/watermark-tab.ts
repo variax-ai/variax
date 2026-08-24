@@ -47,7 +47,9 @@ export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
     logEl.textContent = ''
   }
 
-  // Loading the models costs ~64MB, so the watermarker is built once and kept.
+  // The encoder alone is 17.3MB, so the watermarker is built once and kept. This
+  // demo extracts as well as embeds, so it pulls the 47.4MB decoder too — but
+  // only when the first extraction asks for it.
   let watermarker: Watermarker | null = null
 
   async function ensureWatermarker(): Promise<Watermarker> {
@@ -68,11 +70,11 @@ export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
     ort.env.wasm.wasmPaths = { wasm: ortWasmUrl }
 
     const started = performance.now()
-    log('fetching TrustMark models (~64MB, first run only)…')
+    log('fetching the TrustMark encoder (17.3MB, first run only)…')
     watermarker = await WM.create({
       runtime: createRuntime(ort as never, { executionProviders: ['wasm'] }),
     })
-    log(`models ready in ${Math.round(performance.now() - started)}ms`)
+    log(`encoder ready in ${Math.round(performance.now() - started)}ms`)
     return watermarker
   }
 
@@ -153,6 +155,8 @@ export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
         drawDifference(src, markedImage, 20)
         log(`PSNR ${psnr(src, markedImage).toFixed(1)} dB`)
 
+        // First extraction of the session pays for the decoder download.
+        log('extracting (fetches the 47.4MB decoder on first run)…')
         const extractStart = performance.now()
         const found = await wm.extract([marked])
         log(`extracted in ${Math.round(performance.now() - extractStart)}ms`)
