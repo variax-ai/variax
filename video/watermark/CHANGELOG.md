@@ -1,5 +1,56 @@
 # @variax-ai/video-watermark
 
+## 0.2.0
+
+### Minor Changes
+
+- dfee226: Load the decoder only when something extracts
+
+  `Watermarker.create` downloaded both ONNX models before it would embed a single
+  frame, but embedding never runs the decoder — 47.4MB of a 64.7MB download for a
+  model that was never executed. The decoder now loads on first extract, memoised
+  so concurrent extractions share one download and a failed load stays retryable.
+
+  Embedding costs 17.3MB. This matters most in the browser, where there is no
+  `cacheDir` and the download sits on a user-facing path: a share or export flow no
+  longer waits on the decoder to watermark a frame.
+
+  `LoadedModels.decoder` is now `() => Promise<Session>` rather than a `Session`,
+  which is breaking for anyone hand-building the object and passing it to
+  `new Watermarker(...)`. Callers going through `Watermarker.create` are unaffected.
+
+- a1e5dfc: Carry one `contentId` instead of `templateId` + `renderId`
+
+  The payload described how a frame was produced — which template, which render of
+  it. That is the wrong identity for a forensic mark: the interesting question
+  about a recovered frame is _what content is this_, and the associations around
+  it (which experiment used it, which variation produced it, where it was
+  published) belong in a catalogue where they can change, or be added later,
+  without re-marking a single frame.
+
+  So the payload is now one opaque identifier spanning the whole capacity:
+
+  ```ts
+  await wm.embedFrame(frame, { contentId: 481927351 });
+  // extract → { valid: true, payload: { contentId: 481927351n }, … }
+  ```
+
+  Breaking for every caller: `{ templateId, renderId }` becomes `{ contentId }`,
+  and `extract` returns `contentId` as a **`bigint`**. It has to — `BCH_5` carries
+  61 bits and a `number` only holds 53 exactly, so the old pinned-32-bit split was
+  the only reason the fields fit in doubles at all. `embedFrame` still accepts a
+  plain `number` for small ids, and rejects one too large to be exact rather than
+  silently rounding it.
+
+  `TEMPLATE_ID_BITS`, `layoutFor`, `PayloadLayout` and `maxValue` are gone from the
+  public API; `maxContentId(schema)` replaces them, and `PayloadInput` is the new
+  input type (also re-exported from `/node`).
+
+  Nothing about the encoding, the models or the robustness changes, so marks made
+  by 0.1.x still decode — the same bits, now read as a single integer. To recover
+  the old pair from a `BCH_5` mark: `templateId = contentId >> 29n`, and
+  `renderId = contentId & ((1n << 29n) - 1n)`.
+
 ## 0.1.2
 
 ## 0.1.1

@@ -1,5 +1,11 @@
 # @variax-ai/video-extractor
 
+## 0.2.0
+
+### Patch Changes
+
+- @variax-ai/video-schema@0.2.0
+
 ## 0.1.2
 
 ### Patch Changes
