@@ -228,12 +228,21 @@ export interface LoadedModels {
   variant: Variant
   config: VariantConfig
   encoder: Session
-  decoder: Session
+  /**
+   * The decoder, loaded on first call and memoised after.
+   *
+   * Embedding never runs the decoder, and it is by far the larger of the two
+   * files — so a host that only watermarks frames never pays for it.
+   */
+  decoder(): Promise<Session>
 }
 
 /**
- * Load both models. Sessions are expensive to build — create this once and
+ * Load the models. Sessions are expensive to build — create this once and
  * reuse it across every frame and every video.
+ *
+ * Only the encoder is built here. The decoder is fetched the first time
+ * something extracts, because embedding never touches it.
  */
 export async function loadModels(
   options: ModelOptions = {},
@@ -241,15 +250,51 @@ export async function loadModels(
   const variant = options.variant ?? DEFAULT_VARIANT
   const runtime = options.runtime ?? (await getDefaultRuntime())
 
-  const [encoderBytes, decoderBytes] = await Promise.all([
-    options.models?.encoder ?? loadModelBytes(`encoder_${variant}.onnx`, options),
-    options.models?.decoder ?? loadModelBytes(`decoder_${variant}.onnx`, options),
-  ])
+  const encoderBytes =
+    options.models?.encoder ?? (await loadModelBytes(`encoder_${variant}.onnx`, options))
+  const encoder = await runtime.createSession(encoderBytes)
 
-  const [encoder, decoder] = await Promise.all([
-    runtime.createSession(encoderBytes),
-    runtime.createSession(decoderBytes),
-  ])
+  // Snapshot just the fields the deferred load needs, rather than closing over
+  // `options` itself. Capturing the whole object would keep `options.models`
+  // reachable for the lifetime of the returned object — including the encoder
+  // bytes, which are spent the moment the session above is built, and which a
+  // browser host is told to supply exactly so it can free them. It also pins
+  // `modelsUrl` and `cacheDir` here, next to `variant`, so a caller mutating
+  // the options object afterwards cannot pair one model with another's host.
+  const fetchOptions: ModelOptions = {
+    variant,
+    modelsUrl: options.modelsUrl,
+    cacheDir: options.cacheDir,
+  }
+  let suppliedDecoder = options.models?.decoder
 
-  return { variant, config: VARIANTS[variant], encoder, decoder }
+  // The promise, not the session, so two concurrent extracts share one
+  // download rather than racing two of them.
+  let decoder: Promise<Session> | undefined
+
+  return {
+    variant,
+    config: VARIANTS[variant],
+    encoder,
+    decoder(): Promise<Session> {
+      decoder ??= (async () => {
+        const bytes =
+          suppliedDecoder ??
+          (await loadModelBytes(`decoder_${variant}.onnx`, fetchOptions))
+        const session = await runtime.createSession(bytes)
+        // Released only once the session owns the weights: dropping it any
+        // earlier would send a retry to the network for bytes the caller had
+        // already handed us.
+        suppliedDecoder = undefined
+        return session
+      })().catch((error: unknown) => {
+        // Only successes are worth memoising, for the same reason as
+        // `getDefaultRuntime` above: a transient network failure should not
+        // make extraction permanently impossible for this instance.
+        decoder = undefined
+        throw error
+      })
+      return decoder
+    },
+  }
 }

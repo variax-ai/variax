@@ -216,7 +216,8 @@ export class Watermarker {
     const region = watermarkRegion(frame.width, frame.height)
     const tensor = toModelTensor(frame, size, region)
 
-    const outputs = await this.models.decoder.run({
+    const decoder = await this.models.decoder()
+    const outputs = await decoder.run({
       [DECODER_INPUT]: { data: tensor, dims: [1, 3, size, size] },
     })
     const output = outputs[DECODER_OUTPUT]

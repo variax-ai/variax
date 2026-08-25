@@ -39,19 +39,26 @@ function makeFrame(width: number, height: number): Frame {
 async function main(): Promise<void> {
   const payload = { templateId: 987654321, renderId: 55 }
   try {
-    log('loading models through createRuntime(onnxruntime-web)...')
+    log('loading the encoder through createRuntime(onnxruntime-web)...')
     const started = performance.now()
     const wm = await Watermarker.create({
       modelsUrl: '/models/',
       runtime: createRuntime(ort as never, { executionProviders: ['wasm'] }),
     })
-    log(`models loaded in ${Math.round(performance.now() - started)}ms`)
+    log(`encoder loaded in ${Math.round(performance.now() - started)}ms`)
 
     const frame = makeFrame(1280, 720)
 
     const embedStart = performance.now()
     const marked = await wm.embedFrame(frame, payload)
     log(`single frame embedded in ${Math.round(performance.now() - embedStart)}ms`)
+
+    // The decoder loads on first extraction. Time that separately: folding a
+    // 47.4MB fetch into the figure below is what the README's per-frame extract
+    // row is read from, and it would be off by orders of magnitude.
+    const decoderStart = performance.now()
+    await wm.extract([marked])
+    log(`decoder loaded in ${Math.round(performance.now() - decoderStart)}ms`)
 
     const extractStart = performance.now()
     const result = await wm.extract([marked])

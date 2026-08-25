@@ -93,6 +93,11 @@ describe.skipIf(!ENABLED)('end to end against the real models', () => {
 
   beforeAll(async () => {
     wm = await Watermarker.create({ cacheDir: CACHE_DIR })
+    // `create` now fetches only the encoder, so the decoder's download would
+    // otherwise land inside whichever test extracts first and be billed against
+    // that test's much smaller budget. Warm it here, where the generous timeout
+    // for a cold cache already lives, and the per-test timings stay meaningful.
+    await wm.extract([motionGraphicsFrame()])
   }, 600_000)
 
   it('recovers the payload from a watermarked frame', async () => {

@@ -22,8 +22,10 @@ npm install @variax-ai/video-watermark onnxruntime-node
 dependency — install whichever you need. The file helpers additionally require
 `ffmpeg` and `ffprobe` on `PATH`.
 
-Models are not bundled. They are fetched from Adobe's host on first use (~64MB)
-and cached when `cacheDir` is set.
+Models are not bundled. They are fetched from Adobe's host on first use and
+cached when `cacheDir` is set. The two are loaded separately, because embedding
+never runs the decoder: watermarking costs the 17.3MB encoder, and the 47.4MB
+decoder arrives only when something extracts.
 
 ## Usage
 
@@ -70,7 +72,9 @@ Measured in Chrome on the WASM backend, 1280x720, single-threaded:
 
 | | |
 |---|---|
-| Model load | ~2.5s from a local host (~64MB from Adobe's) |
+| Model load, both | ~2.5s from a local host |
+| — the encoder, which is all embedding needs | 17.3MB from Adobe's |
+| — the decoder, on first extract | 47.4MB from Adobe's |
 | First frame (includes one inference) | ~0.8–1.3s |
 | Subsequent frames in a shot | **~74ms/frame** |
 | Extract from one frame | ~0.3s |
