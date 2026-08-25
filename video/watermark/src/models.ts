@@ -254,6 +254,20 @@ export async function loadModels(
     options.models?.encoder ?? (await loadModelBytes(`encoder_${variant}.onnx`, options))
   const encoder = await runtime.createSession(encoderBytes)
 
+  // Snapshot just the fields the deferred load needs, rather than closing over
+  // `options` itself. Capturing the whole object would keep `options.models`
+  // reachable for the lifetime of the returned object — including the encoder
+  // bytes, which are spent the moment the session above is built, and which a
+  // browser host is told to supply exactly so it can free them. It also pins
+  // `modelsUrl` and `cacheDir` here, next to `variant`, so a caller mutating
+  // the options object afterwards cannot pair one model with another's host.
+  const fetchOptions: ModelOptions = {
+    variant,
+    modelsUrl: options.modelsUrl,
+    cacheDir: options.cacheDir,
+  }
+  let suppliedDecoder = options.models?.decoder
+
   // The promise, not the session, so two concurrent extracts share one
   // download rather than racing two of them.
   let decoder: Promise<Session> | undefined
@@ -265,9 +279,14 @@ export async function loadModels(
     decoder(): Promise<Session> {
       decoder ??= (async () => {
         const bytes =
-          options.models?.decoder ??
-          (await loadModelBytes(`decoder_${variant}.onnx`, options))
-        return runtime.createSession(bytes)
+          suppliedDecoder ??
+          (await loadModelBytes(`decoder_${variant}.onnx`, fetchOptions))
+        const session = await runtime.createSession(bytes)
+        // Released only once the session owns the weights: dropping it any
+        // earlier would send a retry to the network for bytes the caller had
+        // already handed us.
+        suppliedDecoder = undefined
+        return session
       })().catch((error: unknown) => {
         // Only successes are worth memoising, for the same reason as
         // `getDefaultRuntime` above: a transient network failure should not

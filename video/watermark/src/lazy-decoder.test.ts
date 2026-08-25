@@ -131,6 +131,49 @@ describe('lazy decoder loading', () => {
     expect(runtime.created).toHaveLength(2)
   })
 
+  it('fails every concurrent caller of one bad load, then retries clean', async () => {
+    const runtime = fakeRuntime()
+    const { urls } = stubFetch('decoder_')
+
+    const wm = new Watermarker(await loadModels({ runtime }))
+    // Both callers join the same in-flight attempt, so both must see the
+    // failure — and clearing the memo for one must not strand the other.
+    const results = await Promise.allSettled([
+      wm.extract([createFrame(SIZE, SIZE)]),
+      wm.extract([createFrame(SIZE, SIZE)]),
+    ])
+    expect(results.map((r) => r.status)).toEqual(['rejected', 'rejected'])
+    expect(decoderRequests(urls)).toHaveLength(1)
+
+    // The shared failure must not have poisoned the memo for later callers.
+    await expect(wm.extract([createFrame(SIZE, SIZE)])).resolves.toBeDefined()
+    expect(decoderRequests(urls)).toHaveLength(2)
+  })
+
+  it('keeps caller-supplied decoder bytes across a retry', async () => {
+    const runtime = fakeRuntime()
+    const { urls } = stubFetch()
+    // createSession fails once, so the retry re-uses the supplied bytes rather
+    // than silently falling back to the network.
+    let failed = false
+    const original = runtime.createSession.bind(runtime)
+    runtime.createSession = async (model: Uint8Array) => {
+      if (!failed && model.length === 3) {
+        failed = true
+        throw new Error('session build failed')
+      }
+      return original(model)
+    }
+
+    const models = await loadModels({
+      runtime,
+      models: { encoder: new Uint8Array(2), decoder: new Uint8Array(3) },
+    })
+    await expect(models.decoder()).rejects.toThrow('session build failed')
+    await expect(models.decoder()).resolves.toBeDefined()
+    expect(decoderRequests(urls)).toEqual([])
+  })
+
   it('retries after a failed decoder load', async () => {
     const runtime = fakeRuntime()
     const { urls } = stubFetch('decoder_')

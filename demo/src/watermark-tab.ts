@@ -51,6 +51,8 @@ export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
   // demo extracts as well as embeds, so it pulls the 47.4MB decoder too — but
   // only when the first extraction asks for it.
   let watermarker: Watermarker | null = null
+  // The decoder loads on first extraction, not with the watermarker.
+  let decoderReady = false
 
   async function ensureWatermarker(): Promise<Watermarker> {
     if (watermarker) return watermarker
@@ -155,8 +157,17 @@ export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
         drawDifference(src, markedImage, 20)
         log(`PSNR ${psnr(src, markedImage).toFixed(1)} dB`)
 
-        // First extraction of the session pays for the decoder download.
-        log('extracting (fetches the 47.4MB decoder on first run)…')
+        // Only the session's first extraction pays for the decoder, so time it
+        // separately — folding a 47.4MB download into `extracted in` would make
+        // the first run look ~30x slower than the identical work below it.
+        if (!decoderReady) {
+          log('fetching the TrustMark decoder (47.4MB, first extraction only)…')
+          const decoderStart = performance.now()
+          await wm.extract([marked])
+          decoderReady = true
+          log(`decoder ready in ${Math.round(performance.now() - decoderStart)}ms`)
+        }
+
         const extractStart = performance.now()
         const found = await wm.extract([marked])
         log(`extracted in ${Math.round(performance.now() - extractStart)}ms`)
