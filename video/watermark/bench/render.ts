@@ -4,9 +4,12 @@
  * Uses @napi-rs/canvas for a Canvas2D implementation under Node. Both that and
  * the renderer are devDependencies — the watermark package itself never depends
  * on the schema or the renderer.
+ *
+ * No font registration step: @napi-rs/canvas registers the host's families on
+ * import, so text layers draw with real faces already.
  */
 
-import { createCanvas, GlobalFonts } from '@napi-rs/canvas'
+import { createCanvas } from '@napi-rs/canvas'
 import { createDocumentDrawer } from '@variax-ai/video-renderer'
 import type { VideoDocument } from '@variax-ai/video-schema'
 import type { Frame } from '../src/frame'
@@ -20,9 +23,6 @@ export function renderFrames(
   doc: VideoDocument,
   options: RenderOptions = {},
 ): Frame[] {
-  // Register whatever the host has, so text layers are not drawn blank.
-  GlobalFonts.loadSystemFonts()
-
   const canvas = createCanvas(doc.width, doc.height)
   const ctx = canvas.getContext('2d')
 
