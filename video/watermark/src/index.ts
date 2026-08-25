@@ -30,7 +30,7 @@ export type { Frame, Planar } from './frame'
 export { createFrame } from './frame'
 
 export type { Payload, PayloadInput } from './payload'
-export { maxContentId, maxValue, payloadBits } from './payload'
+export { maxContentId } from './payload'
 
 export {
   DataLayer,

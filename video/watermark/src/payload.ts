@@ -47,17 +47,24 @@ export function maxContentId(schema: SchemaName): bigint {
 }
 
 function toId(value: bigint | number): bigint {
-  if (typeof value === 'number') {
-    if (!Number.isInteger(value)) {
-      throw new Error(`contentId must be an integer, got ${value}`)
-    }
-    // Rounding an id is worse than refusing it: the mark would embed cleanly,
-    // extract cleanly, and resolve to the wrong content.
-    if (!Number.isSafeInteger(value)) {
-      throw new Error(
-        `contentId ${value} is past the largest integer a number holds exactly, pass a bigint`,
-      )
-    }
+  if (typeof value === 'bigint') {
+    return value
+  }
+  // Everything else has to be refused before `BigInt` gets it: `BigInt('')`,
+  // `BigInt([])` and `BigInt(false)` are all 0n, so a missing id from an
+  // untyped caller would mark content as id 0 and extract cleanly.
+  if (typeof value !== 'number') {
+    throw new Error(`contentId must be a bigint or a number, got ${typeof value}`)
+  }
+  if (!Number.isInteger(value)) {
+    throw new Error(`contentId must be an integer, got ${value}`)
+  }
+  // Rounding an id is worse than refusing it: the mark would embed cleanly,
+  // extract cleanly, and resolve to the wrong content.
+  if (!Number.isSafeInteger(value)) {
+    throw new Error(
+      `contentId ${value} is past the largest integer a number holds exactly, pass a bigint`,
+    )
   }
   return BigInt(value)
 }

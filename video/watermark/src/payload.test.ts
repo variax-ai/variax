@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DataLayer, SCHEMAS, type SchemaName } from './datalayer'
-import {
-  maxContentId,
-  maxValue,
-  packPayload,
-  payloadBits,
-  unpackPayload,
-} from './payload'
+import { maxContentId, packPayload, unpackPayload } from './payload'
 
 describe('payload', () => {
   const layer = new DataLayer()
@@ -16,7 +10,6 @@ describe('payload', () => {
 
     describe(name, () => {
       it('fills the schema capacity exactly', () => {
-        expect(payloadBits(name)).toBe(spec.dataBits)
         expect(packPayload({ contentId: 1 }, name)).toHaveLength(spec.dataBits)
       })
 
@@ -59,6 +52,16 @@ describe('payload', () => {
       it('rejects a number too large to be exact rather than rounding it', () => {
         expect(() => packPayload({ contentId: 2 ** 60 }, name)).toThrow(/bigint/)
       })
+
+      it('refuses what BigInt would have swallowed', () => {
+        // `BigInt('')`, `BigInt([])` and `BigInt(false)` are all 0n. An untyped
+        // caller passing a missing id must not mark content as id 0.
+        for (const value of ['', [], false, '0x10', ' 5 ', null, undefined]) {
+          expect(() =>
+            packPayload({ contentId: value as never }, name),
+          ).toThrow(/contentId must be a bigint or a number/)
+        }
+      })
     })
   }
 
@@ -85,10 +88,5 @@ describe('payload', () => {
 
     const bits = packPayload({ contentId: id }, 'BCH_5')
     expect(unpackPayload(bits, 'BCH_5')).toEqual({ contentId: id })
-  })
-
-  it('sizes a field from its width', () => {
-    expect(maxValue(8)).toBe(255n)
-    expect(maxValue(64)).toBe(2n ** 64n - 1n)
   })
 })

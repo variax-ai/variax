@@ -18,6 +18,22 @@ function positiveField(raw: string, fallback: number): number {
   return raw.trim() !== '' && Number.isFinite(value) && value > 0 ? value : fallback
 }
 
+/**
+ * A content id field's value, as the bigint the watermarker wants.
+ *
+ * `BigInt` reports its own failures ('Cannot convert 1e3 to a BigInt'), so the
+ * only cases worth wording here are the ones it accepts too quietly: an empty
+ * field is 0n, and `0x10` is 16 rather than the ten the typist meant.
+ */
+function idField(raw: string): bigint {
+  const value = raw.trim()
+  if (value === '') throw new Error('Enter a contentId.')
+  if (!/^[0-9]+$/.test(value)) {
+    throw new Error(`contentId must be digits only, got "${value}".`)
+  }
+  return BigInt(value)
+}
+
 export interface WatermarkTabOptions {
   /** The frame to mark: whatever the renderer tab is currently showing. */
   sourceFrame(): { canvas: HTMLCanvasElement; timeMs: number } | null
@@ -126,12 +142,13 @@ export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
         paint(sourceCanvas, src)
         log(`source: ${src.width}×${src.height} at ${(frame.timeMs / 1000).toFixed(3)}s`)
 
-        const wm = await ensureWatermarker()
+        // Before the model download, not after: `BigInt` throws on a typo, and
+        // a 17.3MB fetch is a long wait to be told the id is malformed. Blank
+        // is refused rather than defaulted — `BigInt('')` is 0n, which would
+        // mark the frame with a real id nobody chose.
+        const payload = { contentId: idField(contentId.value) }
 
-        // `BigInt` throws on anything that is not a whole number, which is
-        // the validation this field wants: the message lands on the error line
-        // like any other bad input.
-        const payload = { contentId: BigInt(contentId.value.trim() || '0') }
+        const wm = await ensureWatermarker()
 
         const embedStart = performance.now()
         // `Frame` is structurally an ImageData, so a canvas frame goes straight in.
