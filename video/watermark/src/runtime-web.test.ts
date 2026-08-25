@@ -50,7 +50,7 @@ function testFrame(width = 640, height = 360): Frame {
 }
 
 describe.skipIf(!ENABLED)('onnxruntime-web runtime', () => {
-  const payload = { templateId: 55544433, renderId: 9 }
+  const payload = { contentId: 55544433n }
   let wm: Watermarker
 
   beforeAll(async () => {

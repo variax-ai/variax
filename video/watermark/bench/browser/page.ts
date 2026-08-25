@@ -37,7 +37,7 @@ function makeFrame(width: number, height: number): Frame {
 }
 
 async function main(): Promise<void> {
-  const payload = { templateId: 987654321, renderId: 55 }
+  const payload = { contentId: 987654321n }
   try {
     log('loading the encoder through createRuntime(onnxruntime-web)...')
     const started = performance.now()
@@ -76,8 +76,7 @@ async function main(): Promise<void> {
 
     const ok =
       result.valid &&
-      result.payload?.templateId === payload.templateId &&
-      result.payload?.renderId === payload.renderId
+      result.payload?.contentId === payload.contentId
 
     log(ok ? 'RESULT: PASS' : 'RESULT: FAIL')
     document.title = ok ? 'PASS' : 'FAIL'

@@ -19,7 +19,12 @@ import {
   type LoadedModels,
   type ModelOptions,
 } from './models'
-import { packPayload, unpackPayload, type Payload } from './payload'
+import {
+  packPayload,
+  unpackPayload,
+  type Payload,
+  type PayloadInput,
+} from './payload'
 import {
   applyResidual,
   cloneFrame,
@@ -95,7 +100,7 @@ export class Watermarker {
   /** Embed a payload into a single frame, returning a new frame. */
   async embedFrame(
     frame: Frame,
-    payload: Payload,
+    payload: PayloadInput,
     options: EmbedOptions = {},
   ): Promise<Frame> {
     assertFrame(frame)
@@ -124,7 +129,7 @@ export class Watermarker {
    */
   async *embedFrames(
     frames: AsyncIterable<Frame> | Iterable<Frame>,
-    payload: Payload,
+    payload: PayloadInput,
     options: EmbedOptions = {},
   ): AsyncGenerator<Frame> {
     const schema = options.schema ?? DEFAULT_SCHEMA
@@ -236,7 +241,7 @@ export class Watermarker {
     return logits
   }
 
-  private packetFor(payload: Payload, schema: SchemaName): Float32Array {
+  private packetFor(payload: PayloadInput, schema: SchemaName): Float32Array {
     const packet = this.dataLayer.encode(packPayload(payload, schema), schema)
     return Float32Array.from(packet)
   }

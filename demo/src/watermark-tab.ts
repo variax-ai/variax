@@ -25,8 +25,7 @@ export interface WatermarkTabOptions {
 
 export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
   const runBtn = $<HTMLButtonElement>('wm-run')
-  const templateId = $<HTMLInputElement>('template-id')
-  const renderId = $<HTMLInputElement>('render-id')
+  const contentId = $<HTMLInputElement>('content-id')
   const schemaSelect = $<HTMLSelectElement>('wm-schema')
   const strength = $<HTMLInputElement>('wm-strength')
   const sourceCanvas = $<HTMLCanvasElement>('wm-source')
@@ -129,10 +128,10 @@ export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
 
         const wm = await ensureWatermarker()
 
-        const payload = {
-          templateId: Number(templateId.value),
-          renderId: Number(renderId.value),
-        }
+        // `BigInt` throws on anything that is not a whole number, which is
+        // the validation this field wants: the message lands on the error line
+        // like any other bad input.
+        const payload = { contentId: BigInt(contentId.value.trim() || '0') }
 
         const embedStart = performance.now()
         // `Frame` is structurally an ImageData, so a canvas frame goes straight in.
@@ -173,7 +172,7 @@ export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
         log(`extracted in ${Math.round(performance.now() - extractStart)}ms`)
         log(
           found.valid
-            ? `recovered ${JSON.stringify(found.payload)} — ${found.bitflips} bit flips corrected, confidence ${found.confidence.toFixed(2)}`
+            ? `recovered contentId ${found.payload!.contentId} — ${found.bitflips} bit flips corrected, confidence ${found.confidence.toFixed(2)}`
             : `error correction failed (confidence ${found.confidence.toFixed(2)})`,
         )
 
@@ -182,7 +181,7 @@ export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
         const control = await wm.extract([src])
         log(
           control.valid
-            ? `control: unmarked frame decoded ${JSON.stringify(control.payload)} — suspicious`
+            ? `control: unmarked frame decoded contentId ${control.payload!.contentId} — suspicious`
             : 'control: unmarked frame decodes to nothing, as it should',
         )
       } catch (e) {

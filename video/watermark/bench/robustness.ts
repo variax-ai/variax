@@ -28,7 +28,7 @@ import { probe, readFrames, writeFrames } from '../src/node/ffmpeg'
 import { benchDocument } from './document'
 import { renderFrames } from './render'
 
-const PAYLOAD: Payload = { templateId: 20260822, renderId: 1337 }
+const PAYLOAD: Payload = { contentId: 20260822001337n }
 const CACHE_DIR =
   process.env.VARIAX_WATERMARK_MODELS ??
   join(process.cwd(), 'node_modules/.cache/variax-watermark')
@@ -125,7 +125,7 @@ async function rawBits(
 }
 
 function samePayload(a: Payload, b: Payload): boolean {
-  return a.templateId === b.templateId && (a.renderId ?? 0) === (b.renderId ?? 0)
+  return a.contentId === b.contentId
 }
 
 function accuracy(actual: Uint8Array, expected: Uint8Array): number {

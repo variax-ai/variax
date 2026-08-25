@@ -259,12 +259,10 @@
         <label>Payload</label>
         <div class="box">
           <div class="field">
-            <label for="template-id">templateId</label>
-            <input id="template-id" type="number" min="0" value="424242" />
-          </div>
-          <div class="field">
-            <label for="render-id">renderId</label>
-            <input id="render-id" type="number" min="0" value="7" />
+            <!-- Text, not number: BCH_5 carries 61 bits, and a number input
+                 rounds ids past 2^53 before they reach the packer. -->
+            <label for="content-id">contentId</label>
+            <input id="content-id" type="text" inputmode="numeric" value="481927351" />
           </div>
           <div class="field">
             <label for="wm-schema">schema</label>

@@ -36,9 +36,9 @@ import { Watermarker } from '@variax-ai/video-watermark'
 
 const wm = await Watermarker.create({ cacheDir: '.models' })
 
-const marked = await wm.embedFrame(frame, { templateId: 42, renderId: 7 })
+const marked = await wm.embedFrame(frame, { contentId: 481927351 })
 const found = await wm.extract([marked])
-// { valid: true, payload: { templateId: 42, renderId: 7 }, ... }
+// { valid: true, payload: { contentId: 481927351n }, ... }
 ```
 
 Whole files, from `@variax-ai/video-watermark/node`:
@@ -46,7 +46,7 @@ Whole files, from `@variax-ai/video-watermark/node`:
 ```ts
 import { extractFile, watermarkFile } from '@variax-ai/video-watermark/node'
 
-await watermarkFile(wm, 'in.mp4', 'out.mp4', { templateId: 42 })
+await watermarkFile(wm, 'in.mp4', 'out.mp4', { contentId: 481927351 })
 const found = await extractFile(wm, 'out.mp4')
 ```
 
@@ -109,9 +109,24 @@ tag. Usable payload depends on the schema:
 | `BCH_4` | 68 | 4 |
 | `BCH_3` | 75 | 3 |
 
-`templateId` is pinned to 32 bits so it means the same thing across schemas;
-`renderId` takes the remainder. Under 10 bytes total — resolve real metadata
-from `templateId` against your own catalogue rather than trying to embed it.
+The payload is one field, `contentId`, spanning all of it: an opaque, stable id
+for the piece of content. Under 10 bytes total — resolve real metadata from
+`contentId` against your own catalogue rather than trying to embed it. Because
+the id is just a big-endian integer filling the payload, it reads back the same
+whichever schema carried it; a roomier schema only adds leading zeros.
+
+`contentId` identifies *content*, not how the content was made. Which template,
+experiment or variation produced a render belongs in your catalogue, where those
+associations can change — or be added years later — without re-marking a frame.
+It is also not the distribution platform's id: a YouTube video id describes one
+platform's copy, while `contentId` stays the same across every copy of the same
+content.
+
+Ids are `bigint`. The default schema carries 61 bits, past the 53 a `number`
+holds exactly, so extraction always returns a `bigint`; `embedFrame` also takes
+a plain `number` and rejects one too large to be exact rather than silently
+rounding it. A `BCH_5` mark holds any id up to 2^61 - 1, so a full UUID does not
+fit — allocate compact ids rather than widening the packet.
 
 ## Embedding strategies
 

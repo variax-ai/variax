@@ -6,7 +6,7 @@
  *
  * ```ts
  * const wm = await Watermarker.create({ cacheDir: '.models' })
- * await watermarkFile(wm, 'in.mp4', 'out.mp4', { templateId: 42 })
+ * await watermarkFile(wm, 'in.mp4', 'out.mp4', { contentId: 481927351 })
  * const found = await extractFile(wm, 'out.mp4')
  * ```
  *
