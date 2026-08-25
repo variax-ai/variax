@@ -97,7 +97,7 @@ describe('lazy decoder loading', () => {
     const { urls } = stubFetch()
 
     const wm = new Watermarker(await loadModels({ runtime }))
-    await wm.embedFrame(createFrame(SIZE, SIZE), { templateId: 1 })
+    await wm.embedFrame(createFrame(SIZE, SIZE), { contentId: 1 })
 
     expect(runtime.created).toHaveLength(1)
     expect(decoderRequests(urls)).toEqual([])

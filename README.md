@@ -276,12 +276,13 @@ import { Watermarker } from "@variax-ai/video-watermark";
 import { watermarkFile } from "@variax-ai/video-watermark/node";
 
 const wm = await Watermarker.create({ cacheDir: ".models" });
-await watermarkFile(wm, "in.mp4", "out.mp4", { templateId: 42, renderId: 7 });
+await watermarkFile(wm, "in.mp4", "out.mp4", { contentId: 481927351 });
 ```
 
-The payload is an **identifier, not metadata** — under 10 bytes, so resolve the
-real record from `templateId` against your own catalogue. On a real 1080p Variax
-render the mark survives H.264 down to CRF 28, a 720p downscale and a 10% crop
+The payload is an **identifier, not metadata** — one `contentId`, under 10
+bytes, so resolve the real record from it against your own catalogue. Ids are
+`bigint`, so compare against `481927351n` rather than a plain number. On a real
+1080p Variax render the mark survives H.264 down to CRF 28, a 720p downscale and a 10% crop
 at 100% bit accuracy, at ~31ms per frame and 48.1 dB PSNR; the same entry point
 runs in a browser on `onnxruntime-web`. See
 [`video/watermark/`](video/watermark/) for the full robustness table and the

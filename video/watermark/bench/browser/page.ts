@@ -37,7 +37,7 @@ function makeFrame(width: number, height: number): Frame {
 }
 
 async function main(): Promise<void> {
-  const payload = { templateId: 987654321, renderId: 55 }
+  const payload = { contentId: 987654321n }
   try {
     log('loading the encoder through createRuntime(onnxruntime-web)...')
     const started = performance.now()
@@ -63,7 +63,7 @@ async function main(): Promise<void> {
     const extractStart = performance.now()
     const result = await wm.extract([marked])
     log(`extracted in ${Math.round(performance.now() - extractStart)}ms`)
-    log(`payload: ${JSON.stringify(result.payload)}`)
+    log(`payload: contentId ${result.payload?.contentId}`)
 
     // A sequence is what watermarking a video actually costs: sharedResidual
     // runs the encoder once per shot, so the rest is plain arithmetic.
@@ -74,10 +74,7 @@ async function main(): Promise<void> {
     const seqMs = performance.now() - seqStart
     log(`sequence: ${count} frames in ${Math.round(seqMs)}ms (${(seqMs / count).toFixed(1)}ms/frame)`)
 
-    const ok =
-      result.valid &&
-      result.payload?.templateId === payload.templateId &&
-      result.payload?.renderId === payload.renderId
+    const ok = result.valid && result.payload?.contentId === payload.contentId
 
     log(ok ? 'RESULT: PASS' : 'RESULT: FAIL')
     document.title = ok ? 'PASS' : 'FAIL'

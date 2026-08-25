@@ -6,7 +6,7 @@
  *
  * ```ts
  * const wm = await Watermarker.create({ cacheDir: '.models' })
- * await watermarkFile(wm, 'in.mp4', 'out.mp4', { templateId: 42 })
+ * await watermarkFile(wm, 'in.mp4', 'out.mp4', { contentId: 481927351 })
  * const found = await extractFile(wm, 'out.mp4')
  * ```
  *
@@ -14,6 +14,7 @@
  */
 
 import type { Frame } from '../frame'
+import type { PayloadInput } from '../payload'
 import type {
   EmbedOptions,
   ExtractResult,
@@ -30,6 +31,7 @@ import {
 
 export { probe, readFrames, writeFrames } from './ffmpeg'
 export type { FfmpegOptions, ReadOptions, VideoInfo, WriteOptions } from './ffmpeg'
+export type { Payload, PayloadInput } from '../payload'
 
 export interface WatermarkFileOptions extends EmbedOptions, WriteOptions {}
 
@@ -45,7 +47,7 @@ export async function watermarkFile(
   watermarker: Watermarker,
   input: string,
   output: string,
-  payload: Parameters<Watermarker['embedFrame']>[1],
+  payload: PayloadInput,
   options: WatermarkFileOptions = {},
 ): Promise<VideoInfo> {
   const info = await probe(input, options)

@@ -1,7 +1,7 @@
 {
   "name": "@variax-ai/video-watermark",
   "version": "0.1.2",
-  "description": "Hidden (forensic) watermarking for video frames — embed and recover a template id that survives re-encoding",
+  "description": "Hidden (forensic) watermarking for video frames — embed and recover a content id that survives re-encoding",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/variax-ai/variax.git",

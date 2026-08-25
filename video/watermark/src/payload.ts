@@ -3,105 +3,105 @@
  *
  * The hard constraint is size: the roomiest schema carries 75 bits, and the
  * default carries 61. That is nowhere near enough for arbitrary metadata, so a
- * mark carries *identifiers* and the metadata is resolved from them. Trying to
- * pack strings in here is the wrong shape — resolve `templateId` against your
- * own catalogue instead.
+ * mark carries a single *identifier* and the metadata is resolved from it.
+ * Trying to pack strings in here is the wrong shape — resolve `contentId`
+ * against your own catalogue instead.
  *
- * Bit widths are computed from the schema rather than hard-coded, so a packet
- * always fills its capacity. `templateId` is pinned at 32 bits so a template's
- * id means the same thing regardless of which schema a given render used;
- * `renderId` takes whatever is left.
+ * `contentId` names the content, not how it was produced. Which template,
+ * experiment or variation made a render belongs in that catalogue, where it can
+ * change — or be added years later — without re-marking a single frame.
+ *
+ * One field spanning the whole payload also means an id reads back the same
+ * whichever schema carried it: the value is a big-endian integer, and a roomier
+ * schema only adds leading zeros. Ids are `bigint` because the default schema's
+ * 61 bits outrun the 53 a `number` holds exactly.
  */
 
 import { schemaByName, type SchemaName } from './datalayer'
 
-/** Bits reserved for the template id, fixed across schemas. */
-export const TEMPLATE_ID_BITS = 32
-
-export interface PayloadLayout {
-  templateId: number
-  renderId: number
-}
-
+/** A recovered payload: one opaque identifier for the marked content. */
 export interface Payload {
-  /** Which template produced the video. */
-  templateId: number
-  /** Which render of that template. Defaults to 0 when not supplied. */
-  renderId?: number
+  /** Stable id for the content this frame belongs to. */
+  contentId: bigint
 }
 
-export function layoutFor(schema: SchemaName): PayloadLayout {
-  const { dataBits } = schemaByName(schema)
-  if (dataBits <= TEMPLATE_ID_BITS) {
-    throw new Error(
-      `schema ${schema} holds ${dataBits} bits, too few for a ${TEMPLATE_ID_BITS}-bit template id`,
-    )
-  }
-  return { templateId: TEMPLATE_ID_BITS, renderId: dataBits - TEMPLATE_ID_BITS }
+/** A payload as callers supply it — a small id may be a plain number. */
+export interface PayloadInput {
+  /** Stable id for the content this frame belongs to. */
+  contentId: bigint | number
+}
+
+/** How many bits of id `schema` carries. */
+export function payloadBits(schema: SchemaName): number {
+  return schemaByName(schema).dataBits
 }
 
 /** Largest value a field of `width` bits can hold. */
-export function maxValue(width: number): number {
-  return Number((1n << BigInt(width)) - 1n)
+export function maxValue(width: number): bigint {
+  return (1n << BigInt(width)) - 1n
 }
 
-function packField(
-  bits: Uint8Array,
-  offset: number,
-  width: number,
-  value: number,
-  name: string,
-): void {
-  if (!Number.isInteger(value) || value < 0) {
-    throw new Error(`${name} must be a non-negative integer, got ${value}`)
+/** Largest content id `schema` can carry. */
+export function maxContentId(schema: SchemaName): bigint {
+  return maxValue(payloadBits(schema))
+}
+
+function toId(value: bigint | number): bigint {
+  if (typeof value === 'bigint') {
+    return value
   }
-  if (value > maxValue(width)) {
+  // Everything else has to be refused before `BigInt` gets it: `BigInt('')`,
+  // `BigInt([])` and `BigInt(false)` are all 0n, so a missing id from an
+  // untyped caller would mark content as id 0 and extract cleanly.
+  if (typeof value !== 'number') {
+    throw new Error(`contentId must be a bigint or a number, got ${typeof value}`)
+  }
+  if (!Number.isInteger(value)) {
+    throw new Error(`contentId must be an integer, got ${value}`)
+  }
+  // Rounding an id is worse than refusing it: the mark would embed cleanly,
+  // extract cleanly, and resolve to the wrong content.
+  if (!Number.isSafeInteger(value)) {
     throw new Error(
-      `${name} is ${value} but only ${width} bits are available (max ${maxValue(width)})`,
+      `contentId ${value} is past the largest integer a number holds exactly, pass a bigint`,
     )
   }
-  // BigInt rather than shifts: renderId can exceed 32 bits, where `>>` breaks.
-  let v = BigInt(value)
-  for (let i = width - 1; i >= 0; i--) {
-    bits[offset + i] = Number(v & 1n)
-    v >>= 1n
-  }
-}
-
-function unpackField(bits: Uint8Array, offset: number, width: number): number {
-  let v = 0n
-  for (let i = 0; i < width; i++) {
-    v = (v << 1n) | BigInt(bits[offset + i])
-  }
-  return Number(v)
+  return BigInt(value)
 }
 
 /** Pack a payload into the data bits for `schema`. */
-export function packPayload(payload: Payload, schema: SchemaName): Uint8Array {
-  const layout = layoutFor(schema)
-  const bits = new Uint8Array(layout.templateId + layout.renderId)
+export function packPayload(payload: PayloadInput, schema: SchemaName): Uint8Array {
+  const width = payloadBits(schema)
+  const id = toId(payload.contentId)
 
-  packField(bits, 0, layout.templateId, payload.templateId, 'templateId')
-  packField(
-    bits,
-    layout.templateId,
-    layout.renderId,
-    payload.renderId ?? 0,
-    'renderId',
-  )
+  if (id < 0n) {
+    throw new Error(`contentId must be non-negative, got ${id}`)
+  }
+  if (id > maxValue(width)) {
+    throw new Error(
+      `contentId is ${id} but schema ${schema} holds ${width} bits (max ${maxValue(width)})`,
+    )
+  }
+
+  const bits = new Uint8Array(width)
+  let v = id
+  for (let i = width - 1; i >= 0; i--) {
+    bits[i] = Number(v & 1n)
+    v >>= 1n
+  }
   return bits
 }
 
 /** Recover a payload from the data bits of a decoded packet. */
 export function unpackPayload(bits: Uint8Array, schema: SchemaName): Payload {
-  const layout = layoutFor(schema)
-  if (bits.length !== layout.templateId + layout.renderId) {
-    throw new Error(
-      `expected ${layout.templateId + layout.renderId} data bits for ${schema}, got ${bits.length}`,
-    )
+  const width = payloadBits(schema)
+  if (bits.length !== width) {
+    throw new Error(`expected ${width} data bits for ${schema}, got ${bits.length}`)
   }
-  return {
-    templateId: unpackField(bits, 0, layout.templateId),
-    renderId: unpackField(bits, layout.templateId, layout.renderId),
+
+  let v = 0n
+  for (let i = 0; i < width; i++) {
+    v = (v << 1n) | BigInt(bits[i])
   }
+  return { contentId: v }
 }

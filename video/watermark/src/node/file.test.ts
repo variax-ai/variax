@@ -41,7 +41,7 @@ function makeClip(path: string, size = '1280x720', seconds = 2): void {
 describe.skipIf(!ENABLED)('file helpers', () => {
   let wm: Watermarker
   let dir: string
-  const payload = { templateId: 987654, renderId: 21 }
+  const payload = { contentId: 987654n }
 
   beforeAll(async () => {
     dir = await mkdtemp(join(tmpdir(), 'variax-wm-file-'))

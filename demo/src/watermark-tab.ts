@@ -18,6 +18,22 @@ function positiveField(raw: string, fallback: number): number {
   return raw.trim() !== '' && Number.isFinite(value) && value > 0 ? value : fallback
 }
 
+/**
+ * A content id field's value, as the bigint the watermarker wants.
+ *
+ * `BigInt` reports its own failures ('Cannot convert 1e3 to a BigInt'), so the
+ * only cases worth wording here are the ones it accepts too quietly: an empty
+ * field is 0n, and `0x10` is 16 rather than the ten the typist meant.
+ */
+function idField(raw: string): bigint {
+  const value = raw.trim()
+  if (value === '') throw new Error('Enter a contentId.')
+  if (!/^[0-9]+$/.test(value)) {
+    throw new Error(`contentId must be digits only, got "${value}".`)
+  }
+  return BigInt(value)
+}
+
 export interface WatermarkTabOptions {
   /** The frame to mark: whatever the renderer tab is currently showing. */
   sourceFrame(): { canvas: HTMLCanvasElement; timeMs: number } | null
@@ -25,8 +41,7 @@ export interface WatermarkTabOptions {
 
 export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
   const runBtn = $<HTMLButtonElement>('wm-run')
-  const templateId = $<HTMLInputElement>('template-id')
-  const renderId = $<HTMLInputElement>('render-id')
+  const contentId = $<HTMLInputElement>('content-id')
   const schemaSelect = $<HTMLSelectElement>('wm-schema')
   const strength = $<HTMLInputElement>('wm-strength')
   const sourceCanvas = $<HTMLCanvasElement>('wm-source')
@@ -127,12 +142,13 @@ export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
         paint(sourceCanvas, src)
         log(`source: ${src.width}×${src.height} at ${(frame.timeMs / 1000).toFixed(3)}s`)
 
-        const wm = await ensureWatermarker()
+        // Before the model download, not after: `BigInt` throws on a typo, and
+        // a 17.3MB fetch is a long wait to be told the id is malformed. Blank
+        // is refused rather than defaulted — `BigInt('')` is 0n, which would
+        // mark the frame with a real id nobody chose.
+        const payload = { contentId: idField(contentId.value) }
 
-        const payload = {
-          templateId: Number(templateId.value),
-          renderId: Number(renderId.value),
-        }
+        const wm = await ensureWatermarker()
 
         const embedStart = performance.now()
         // `Frame` is structurally an ImageData, so a canvas frame goes straight in.
@@ -173,7 +189,7 @@ export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
         log(`extracted in ${Math.round(performance.now() - extractStart)}ms`)
         log(
           found.valid
-            ? `recovered ${JSON.stringify(found.payload)} — ${found.bitflips} bit flips corrected, confidence ${found.confidence.toFixed(2)}`
+            ? `recovered contentId ${found.payload!.contentId} — ${found.bitflips} bit flips corrected, confidence ${found.confidence.toFixed(2)}`
             : `error correction failed (confidence ${found.confidence.toFixed(2)})`,
         )
 
@@ -182,7 +198,7 @@ export function initWatermarkTab({ sourceFrame }: WatermarkTabOptions): void {
         const control = await wm.extract([src])
         log(
           control.valid
-            ? `control: unmarked frame decoded ${JSON.stringify(control.payload)} — suspicious`
+            ? `control: unmarked frame decoded contentId ${control.payload!.contentId} — suspicious`
             : 'control: unmarked frame decodes to nothing, as it should',
         )
       } catch (e) {

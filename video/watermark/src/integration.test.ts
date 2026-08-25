@@ -89,7 +89,7 @@ function rescale(frame: Frame, width: number, height: number): Frame {
 
 describe.skipIf(!ENABLED)('end to end against the real models', () => {
   let wm: Watermarker
-  const payload = { templateId: 123456789, renderId: 4242 }
+  const payload = { contentId: 123456789n }
 
   beforeAll(async () => {
     wm = await Watermarker.create({ cacheDir: CACHE_DIR })

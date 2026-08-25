@@ -36,9 +36,9 @@ import { Watermarker } from '@variax-ai/video-watermark'
 
 const wm = await Watermarker.create({ cacheDir: '.models' })
 
-const marked = await wm.embedFrame(frame, { templateId: 42, renderId: 7 })
+const marked = await wm.embedFrame(frame, { contentId: 481927351 })
 const found = await wm.extract([marked])
-// { valid: true, payload: { templateId: 42, renderId: 7 }, ... }
+// { valid: true, payload: { contentId: 481927351n }, ... }
 ```
 
 Whole files, from `@variax-ai/video-watermark/node`:
@@ -46,7 +46,7 @@ Whole files, from `@variax-ai/video-watermark/node`:
 ```ts
 import { extractFile, watermarkFile } from '@variax-ai/video-watermark/node'
 
-await watermarkFile(wm, 'in.mp4', 'out.mp4', { templateId: 42 })
+await watermarkFile(wm, 'in.mp4', 'out.mp4', { contentId: 481927351 })
 const found = await extractFile(wm, 'out.mp4')
 ```
 
@@ -109,9 +109,67 @@ tag. Usable payload depends on the schema:
 | `BCH_4` | 68 | 4 |
 | `BCH_3` | 75 | 3 |
 
-`templateId` is pinned to 32 bits so it means the same thing across schemas;
-`renderId` takes the remainder. Under 10 bytes total — resolve real metadata
-from `templateId` against your own catalogue rather than trying to embed it.
+The payload is one field, `contentId`, spanning all of it: an opaque, stable id
+for the piece of content. Under 10 bytes total — resolve real metadata from
+`contentId` against your own catalogue rather than trying to embed it. The id is
+a big-endian integer filling the payload, so a decode under the schema that
+carried it returns exactly what went in, and a roomier schema only adds leading
+zeros.
+
+`contentId` identifies *content*, not how the content was made. Which template,
+experiment or variation produced a render belongs in your catalogue, where those
+associations can change — or be added years later — without re-marking a frame.
+It is also not the distribution platform's id: a YouTube video id describes one
+platform's copy, while `contentId` stays the same across every copy of the same
+content.
+
+### Sizing an id
+
+`maxContentId(schema)` is the ceiling, and it is worth allocating against rather
+than discovering: the id occupies the schema's whole payload, so how big an id
+may be depends on which schema carried it. An id under `maxContentId('BCH_SUPER')`
+— 2^40 - 1 — is embeddable under every schema; a 2^61 id is fine by default and
+throws if a clip is later marked with `BCH_SUPER` for robustness. A full UUID
+fits nothing here: allocate compact ids from a sequence or a snowflake-style
+scheme rather than widening the packet.
+
+The flip side of one field spanning the payload is that the id is right-aligned
+to the schema's width, so it degrades less gracefully than a fixed-width field
+would. When the schema tag itself is corrupted, `DataLayer.decode` falls back
+through the other schemas and reads the data bits at a different width — and an
+id read at the wrong width is a different number, not a truncated one. This is
+rare (the fallback still has to satisfy BCH), but it is the one case where a
+`valid: true` result can carry a wrong id.
+
+### Ids are `bigint`
+
+The default schema carries 61 bits, past the 53 a `number` holds exactly, so
+extraction always returns a `bigint`. `embedFrame` also takes a plain `number`,
+rejecting one too large to be exact rather than silently rounding it, and
+rejecting anything that is neither — `BigInt('')` is `0n`, and a mark is the
+wrong place to discover that.
+
+Two consequences worth knowing before you build on it:
+
+```ts
+found.payload.contentId === 481927351   // false — bigint vs number
+JSON.stringify(found.payload)           // throws: cannot serialize a BigInt
+```
+
+Compare against a `bigint` (`481927351n`, or `BigInt(id)`), and render the id
+with `String(contentId)` before it reaches JSON, a log line, or a database
+driver.
+
+### Marks made before 1.0
+
+Nothing about the encoding changed when `templateId` + `renderId` became
+`contentId`, so marks made by 0.1.x still decode — the same bits are now read as
+one integer. To recover the old pair from a `BCH_5` mark:
+
+```ts
+const templateId = contentId >> 29n              // 61 - 32 payload bits
+const renderId = contentId & ((1n << 29n) - 1n)
+```
 
 ## Embedding strategies
 

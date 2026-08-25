@@ -58,8 +58,8 @@ export function benchDocument(width = 1920, height = 1080): VideoDocument {
             transform: {
               scale: {
                 keyframes: [
-                  { timeMs: 0, value: 0.4 },
-                  { timeMs: 1200, value: 1, easing: 'easeOutCubic' },
+                  { t: 0, value: 0.4 },
+                  { t: 1200, value: 1, easing: 'easeOutCubic' },
                 ],
               },
             },
