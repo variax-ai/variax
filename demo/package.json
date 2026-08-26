@@ -10,10 +10,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@variax-ai/video-extractor": "0.1.2",
-    "@variax-ai/video-renderer": "0.1.2",
-    "@variax-ai/video-schema": "0.1.2",
-    "@variax-ai/video-watermark": "0.1.2",
+    "@variax-ai/video-extractor": "0.2.0",
+    "@variax-ai/video-renderer": "0.2.0",
+    "@variax-ai/video-schema": "0.2.0",
+    "@variax-ai/video-watermark": "0.2.0",
     "onnxruntime-web": "^1.27.0"
   },
   "devDependencies": {

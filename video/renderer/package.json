@@ -1,6 +1,6 @@
 {
   "name": "@variax-ai/video-renderer",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Framework-agnostic Canvas2D renderer for Variax video documents",
   "repository": {
     "type": "git",
@@ -32,7 +32,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@variax-ai/video-schema": "0.1.2"
+    "@variax-ai/video-schema": "0.2.0"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.10",
