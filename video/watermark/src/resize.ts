@@ -24,7 +24,7 @@ function triangle(x: number): number {
   return a < 1.0 ? 1.0 - a : 0.0
 }
 
-interface Coefficients {
+export interface Coefficients {
   /** For each output index, where its support window starts in the input. */
   bounds: Int32Array
   /** Flattened weights, `kernelSize` per output index. */
@@ -40,7 +40,7 @@ interface Coefficients {
  * @param start   start of the region being resampled (for cropping)
  * @param end     end of that region
  */
-function computeCoefficients(
+export function computeCoefficients(
   inSize: number,
   outSize: number,
   start: number,

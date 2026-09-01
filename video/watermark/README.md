@@ -97,6 +97,42 @@ Three things to know:
   encoder you pick has to preserve the residual; the measured robustness table
   below assumes something in the quality range of x264 at CRF 23 or better.
 
+### Phone performance
+
+On a budget phone the WASM backend can be 3–5× slower than the desktop figures
+above. The biggest wins come from the runtime backend and from avoiding work
+altogether:
+
+1. **Use WebGPU if the browser supports it.** The TrustMark models are small
+   CNNs that run much faster on a GPU backend than on single-threaded WASM:
+   ```ts
+   const wm = await Watermarker.create({
+     runtime: createRuntime(ort, { executionProviders: ['webgpu'] }),
+   })
+   ```
+   Fallback to WASM is automatic on browsers that lack WebGPU.
+
+2. **Use `sharedResidual` and mark in place.** These are the defaults, but
+   worth confirming:
+   ```ts
+   for await (const marked of wm.embedFrames(frames, payload, { inPlace: true })) {
+     // encode marked
+   }
+   ```
+
+3. **Mark a fraction of the frames.** The sparse-marking bench shows that
+   marking three consecutive frames per second is enough for recovery, and it
+   cuts embedding time to ~10% of marking every frame. See the table in
+   "Embedding strategies" below.
+
+4. **Decode with `decodeFrame`, not `extract`, and scan sparsely.**
+   `extract` sums logits across *every* frame it is given, so unmarked frames
+   dilute the signal. A phone scanner should sample every Nth frame, run
+   `decodeFrame`, and stop once two frames agree on the same id.
+
+5. **Reuse the `Watermarker` instance.** Model sessions are expensive to build;
+   create one `Watermarker` and keep it for the lifetime of the page.
+
 ## The payload is an identifier, not metadata
 
 The watermark carries 100 bits: payload, error correction, and a 4-bit schema

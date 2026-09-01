@@ -33,7 +33,7 @@ import type { Frame } from '../src/frame'
 import { probe, readFrames, writeFrames } from '../src/node/ffmpeg'
 import { benchDocument } from './document'
 import { renderFrames } from './render'
-import { CACHE_DIR, accuracy, ffmpeg, psnr } from './harness'
+import { CACHE_DIR, accuracy, availableEncoders, ffmpeg, psnr } from './harness'
 
 const PAYLOAD: Payload = { contentId: 20260901084500n }
 const FPS = 30
@@ -69,6 +69,10 @@ interface Condition {
   name: string
   description: string
   args: string[]
+  /** Encoder the condition needs; skipped when this ffmpeg lacks it. */
+  requires?: string
+  /** Container extension, when the codec will not sit in an mp4. */
+  ext?: string
 }
 
 const CONDITIONS: Condition[] = [
@@ -83,6 +87,17 @@ const CONDITIONS: Condition[] = [
     args: [
       '-vf', 'crop=iw*0.9:ih*0.9', '-c:v', 'libx264', '-crf', '23', '-pix_fmt', 'yuv420p',
     ],
+  },
+  {
+    name: 'vp9-720',
+    description: 'VP9 at 720p, 1.5Mbps (what YouTube serves)',
+    args: [
+      '-vf', 'scale=1280:720',
+      '-c:v', 'libvpx-vp9', '-b:v', '1500k', '-row-mt', '1', '-cpu-used', '4',
+      '-pix_fmt', 'yuv420p',
+    ],
+    ext: 'webm',
+    requires: 'libvpx-vp9',
   },
 ]
 
@@ -255,6 +270,8 @@ async function main(): Promise<void> {
     }
     const keyframeArgs = ['-force_key_frames', runStarts(frames.length).join(',')]
 
+    const encoders = await availableEncoders()
+
     const summary: {
       layout: string
       condition: string
@@ -292,7 +309,14 @@ async function main(): Promise<void> {
       console.log(`  marked   ${marks}`)
 
       for (const condition of CONDITIONS) {
-        const file = join(dir, `${layout.name}-${condition.name}.mp4`)
+        if (condition.requires && !encoders.has(condition.requires)) {
+          console.log(
+            `  ${condition.name.padEnd(8)} skipped — no ${condition.requires}`,
+          )
+          continue
+        }
+
+        const file = join(dir, `${layout.name}-${condition.name}.${condition.ext ?? 'mp4'}`)
         await ffmpeg([
           '-i', master,
           ...condition.args,

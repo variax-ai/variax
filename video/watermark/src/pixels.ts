@@ -7,7 +7,7 @@
  */
 
 import type { Frame, Planar } from './frame'
-import { resizePlanar, type CropBox } from './resize'
+import { computeCoefficients, resizePlanar, type CropBox } from './resize'
 
 /** Aspect ratios beyond this are centre-cropped before the model sees them. */
 export const ASPECT_RATIO_LIMIT = 2.0
@@ -51,20 +51,87 @@ export function frameToPlanar(frame: Frame): Planar {
 /**
  * Resample the region to the model's input size and normalise to [-1, 1],
  * yielding an NCHW tensor ready for inference.
+ *
+ * When `out` is supplied and large enough it is reused, which saves an
+ * allocation on repeated calls with the same size. `mid` is the intermediate
+ * horizontal-pass buffer; reusing it avoids another large allocation.
  */
 export function toModelTensor(
   frame: Frame,
   size: number,
   region: CropBox,
+  out?: Float32Array,
+  mid?: Float32Array,
 ): Float32Array {
-  const planar = frameToPlanar(frame)
-  const resized = resizePlanar(planar, size, size, region)
+  const channels = 3
+  const horizontal = computeCoefficients(
+    frame.width,
+    size,
+    region.x,
+    region.x + region.width,
+  )
+  const vertical = computeCoefficients(
+    frame.height,
+    size,
+    region.y,
+    region.y + region.height,
+  )
 
-  const out = new Float32Array(resized.data.length)
-  for (let i = 0; i < out.length; i++) {
-    out[i] = resized.data[i] / 127.5 - 1
+  // Two-pass separable resize, reading directly from RGBA so the full-frame
+  // planar copy (3 * width * height floats) is skipped.
+  const midSize = channels * frame.height * size
+  const midBuf = mid && mid.length >= midSize ? mid : new Float32Array(midSize)
+
+  for (let y = 0; y < frame.height; y++) {
+    const srcRow = y * frame.width
+    const midRow = y * size
+    for (let x = 0; x < size; x++) {
+      const min = horizontal.bounds[x]
+      const wBase = x * horizontal.kernelSize
+      let r = 0
+      let g = 0
+      let b = 0
+      for (let i = 0; i < horizontal.kernelSize; i++) {
+        const w = horizontal.weights[wBase + i]
+        if (w !== 0) {
+          const p = (srcRow + min + i) * 4
+          r += frame.data[p] * w
+          g += frame.data[p + 1] * w
+          b += frame.data[p + 2] * w
+        }
+      }
+      const base = midRow + x
+      midBuf[base] = r
+      midBuf[base + frame.height * size] = g
+      midBuf[base + 2 * frame.height * size] = b
+    }
   }
-  return out
+
+  const outSize = channels * size * size
+  const result = out && out.length >= outSize ? out : new Float32Array(outSize)
+  const plane = size * size
+
+  for (let c = 0; c < channels; c++) {
+    const midPlane = c * frame.height * size
+    const outPlane = c * plane
+    for (let y = 0; y < size; y++) {
+      const min = vertical.bounds[y]
+      const wBase = y * vertical.kernelSize
+      const outRow = outPlane + y * size
+      for (let x = 0; x < size; x++) {
+        let sum = 0
+        for (let i = 0; i < vertical.kernelSize; i++) {
+          const w = vertical.weights[wBase + i]
+          if (w !== 0) {
+            sum += midBuf[midPlane + (min + i) * size + x] * w
+          }
+        }
+        result[outRow + x] = sum / 127.5 - 1
+      }
+    }
+  }
+
+  return result
 }
 
 /**
