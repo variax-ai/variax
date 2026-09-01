@@ -127,7 +127,7 @@ altogether:
 
 4. **Decode with `decodeFrame`, not `extract`, and scan sparsely.**
    `extract` sums logits across *every* frame it is given, so unmarked frames
-   dilute the signal. A phone scanner should sample every Nth frame, run
+   dilute the signal. A scanning decoder should sample every Nth frame, run
    `decodeFrame`, and stop once two frames agree on the same id.
 
 5. **Reuse the `Watermarker` instance.** Model sessions are expensive to build;

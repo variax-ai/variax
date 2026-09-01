@@ -53,15 +53,13 @@ export function frameToPlanar(frame: Frame): Planar {
  * yielding an NCHW tensor ready for inference.
  *
  * When `out` is supplied and large enough it is reused, which saves an
- * allocation on repeated calls with the same size. `mid` is the intermediate
- * horizontal-pass buffer; reusing it avoids another large allocation.
+ * allocation on repeated calls with the same size.
  */
 export function toModelTensor(
   frame: Frame,
   size: number,
   region: CropBox,
   out?: Float32Array,
-  mid?: Float32Array,
 ): Float32Array {
   const channels = 3
   const horizontal = computeCoefficients(
@@ -79,8 +77,7 @@ export function toModelTensor(
 
   // Two-pass separable resize, reading directly from RGBA so the full-frame
   // planar copy (3 * width * height floats) is skipped.
-  const midSize = channels * frame.height * size
-  const midBuf = mid && mid.length >= midSize ? mid : new Float32Array(midSize)
+  const mid = new Float32Array(channels * frame.height * size)
 
   for (let y = 0; y < frame.height; y++) {
     const srcRow = y * frame.width
@@ -101,9 +98,9 @@ export function toModelTensor(
         }
       }
       const base = midRow + x
-      midBuf[base] = r
-      midBuf[base + frame.height * size] = g
-      midBuf[base + 2 * frame.height * size] = b
+      mid[base] = r
+      mid[base + frame.height * size] = g
+      mid[base + 2 * frame.height * size] = b
     }
   }
 
@@ -123,7 +120,7 @@ export function toModelTensor(
         for (let i = 0; i < vertical.kernelSize; i++) {
           const w = vertical.weights[wBase + i]
           if (w !== 0) {
-            sum += midBuf[midPlane + (min + i) * size + x] * w
+            sum += mid[midPlane + (min + i) * size + x] * w
           }
         }
         result[outRow + x] = sum / 127.5 - 1

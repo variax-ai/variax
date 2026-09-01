@@ -103,7 +103,6 @@ export class Watermarker {
   private readonly dataLayer: DataLayer
   /** Reusable buffers to cut per-frame allocations on phones. */
   private encodeTensor?: Float32Array
-  private encodeMid?: Float32Array
   private decodeTensor?: Float32Array
   private residualBuf?: Float32Array
   private signatureBuf?: Float32Array
@@ -129,9 +128,8 @@ export class Watermarker {
     const bits = this.packetFor(payload, schema)
 
     const region = watermarkRegion(frame.width, frame.height)
-    const cover = toModelTensor(frame, this.models.config.encodeSize, region, this.encodeTensor, this.encodeMid)
+    const cover = toModelTensor(frame, this.models.config.encodeSize, region, this.encodeTensor)
     this.encodeTensor = cover
-    this.encodeMid = cover === this.encodeTensor ? this.encodeMid : undefined
     const residual = await this.residualFor(cover, bits)
 
     const out = options.inPlace ? frame : cloneFrame(frame)
@@ -180,9 +178,8 @@ export class Watermarker {
         signatureDistance(cached.signature, signature) > threshold
 
       if (strategy === 'perFrame' || stale) {
-        const cover = toModelTensor(frame, size, region, this.encodeTensor, this.encodeMid)
+        const cover = toModelTensor(frame, size, region, this.encodeTensor)
         this.encodeTensor = cover
-        this.encodeMid = cover === this.encodeTensor ? this.encodeMid : undefined
         const residual = await this.residualFor(cover, bits)
         cached = {
           upscaled: upscaleResidual(residual, region, strength),
