@@ -27,3 +27,11 @@ id and a decoder can scan until it finds one. It compares marking every frame
 against runs and isolated frames, with and without forcing a keyframe where each
 run begins, and reports which frames a scanning decoder actually recovers the id
 from after re-encoding and cropping.
+
+The same bench grew a second table of platform-shaped conditions — VP9, AV1,
+H.264 capped at a ladder bitrate rather than a CRF, a frame-rate conform, a
+vertical reframe and a trim — because constant-quality re-encodes are the
+friendly case. Codecs and bitrate caps all recover the payload at 100% bit
+accuracy. Reframing 16:9 to 9:16 does not: it reads 56% against a 53% control,
+so the mark is gone rather than weakened. Watermark each aspect ratio you ship,
+after cutting it.
