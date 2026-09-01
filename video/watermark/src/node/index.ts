@@ -53,7 +53,13 @@ export async function watermarkFile(
   const info = await probe(input, options)
 
   const source = readFrames(input, info, options)
-  const marked = watermarker.embedFrames(source, payload, options)
+  // `readFrames` mints a fresh buffer per frame and nothing else can reach
+  // them, so the copy `embedFrames` would otherwise make has no observer — it
+  // is one full-frame allocation per frame, thrown away immediately.
+  const marked = watermarker.embedFrames(source, payload, {
+    inPlace: true,
+    ...options,
+  })
 
   await writeFrames(output, marked, info, { audioFrom: input, ...options })
   return info

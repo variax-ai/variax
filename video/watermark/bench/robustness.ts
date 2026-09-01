@@ -18,7 +18,6 @@
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { spawn } from 'node:child_process'
 
 import { Watermarker } from '../src/watermarker'
 import { DataLayer, PAYLOAD_BITS } from '../src/datalayer'
@@ -27,11 +26,9 @@ import type { Payload } from '../src/payload'
 import { probe, readFrames, writeFrames } from '../src/node/ffmpeg'
 import { benchDocument } from './document'
 import { renderFrames } from './render'
+import { CACHE_DIR, accuracy, ffmpeg, psnr } from './harness'
 
 const PAYLOAD: Payload = { contentId: 20260822001337n }
-const CACHE_DIR =
-  process.env.VARIAX_WATERMARK_MODELS ??
-  join(process.cwd(), 'node_modules/.cache/variax-watermark')
 
 interface Condition {
   name: string
@@ -83,20 +80,6 @@ const CONDITIONS: Condition[] = [
   },
 ]
 
-function ffmpeg(args: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn('ffmpeg', ['-v', 'error', '-y', ...args])
-    let stderr = ''
-    child.stderr.on('data', (c) => (stderr += c))
-    child.on('error', reject)
-    child.on('close', (code) =>
-      code === 0
-        ? resolve()
-        : reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-800)}`)),
-    )
-  })
-}
-
 /** Aggregate decoder logits across sampled frames and threshold once. */
 async function rawBits(
   wm: Watermarker,
@@ -126,25 +109,6 @@ async function rawBits(
 
 function samePayload(a: Payload, b: Payload): boolean {
   return a.contentId === b.contentId
-}
-
-function accuracy(actual: Uint8Array, expected: Uint8Array): number {
-  let same = 0
-  for (let i = 0; i < expected.length; i++) if (actual[i] === expected[i]) same += 1
-  return same / expected.length
-}
-
-function psnr(a: Uint8ClampedArray, b: Uint8ClampedArray): number {
-  let sum = 0
-  let count = 0
-  for (let i = 0; i < a.length; i++) {
-    if (i % 4 === 3) continue
-    const d = a[i] - b[i]
-    sum += d * d
-    count += 1
-  }
-  const mse = sum / count
-  return mse === 0 ? Infinity : 10 * Math.log10((255 * 255) / mse)
 }
 
 async function main(): Promise<void> {

@@ -68,28 +68,49 @@ export function toModelTensor(
 }
 
 /**
- * Resample a model-sized residual up to the region it will be applied to.
+ * Resample a model-sized residual up to the region it will be applied to, and
+ * scale it into the byte space of the frames it will be added to.
  *
  * Split out from `applyResidual` so a residual shared across a shot is
  * upscaled once rather than once per frame — for a 30s 1080p clip that is one
- * resample instead of nine hundred identical ones.
+ * resample instead of nine hundred identical ones. `strength` is folded in for
+ * the same reason: it turns the per-frame loop into a single add per channel,
+ * which at 1080p is six million multiplies that no longer happen per frame.
+ *
+ * Folding the conversion in costs a little precision, since the scaled value is
+ * stored back into the residual's `Float32Array` rather than staying in a
+ * double until it meets the pixel. The deltas are small — a few byte units —
+ * so the error is around 1e-7 of a byte, which only matters for a value sitting
+ * that close to a rounding boundary.
  */
-export function upscaleResidual(residual: Planar, region: CropBox): Planar {
-  return resizePlanar(residual, region.width, region.height)
+export function upscaleResidual(
+  residual: Planar,
+  region: CropBox,
+  strength: number,
+): Planar {
+  const upscaled = resizePlanar(residual, region.width, region.height)
+  const factor = strength * 127.5
+  const data = upscaled.data
+  for (let i = 0; i < data.length; i++) data[i] *= factor
+  return upscaled
 }
 
 /**
- * Add an already-upscaled residual back into a frame, in place.
+ * Add an upscaled, strength-scaled residual into a frame, in place.
  *
- * Mirrors the reference: the residual is scaled by `strength`, added in [-1, 1]
- * space, clipped, and converted back to bytes. Alpha is left untouched, and so
- * is everything outside `region`.
+ * The reference adds the residual in [-1, 1] space, clips, and converts back to
+ * bytes. This does the same arithmetic in byte space instead, which is
+ * identical rather than merely close: the mapping between the two is linear, so
+ * clipping to [-1, 1] before scaling and clamping to [0, 255] after are the
+ * same operation, and `Uint8ClampedArray` already clamps and rounds
+ * half-to-even on assignment. What is left is one add per channel.
+ *
+ * Alpha is left untouched, and so is everything outside `region`.
  */
 export function applyResidual(
   frame: Frame,
   upscaled: Planar,
   region: CropBox,
-  strength: number,
 ): void {
   if (upscaled.width !== region.width || upscaled.height !== region.height) {
     throw new Error(
@@ -97,20 +118,33 @@ export function applyResidual(
     )
   }
   const plane = region.width * region.height
+  const data = frame.data
+  const delta = upscaled.data
+
+  // The common case — no centre crop — is one contiguous walk of both arrays,
+  // with no per-pixel address arithmetic at all.
+  if (
+    region.x === 0 &&
+    region.y === 0 &&
+    region.width === frame.width &&
+    region.height === frame.height
+  ) {
+    for (let i = 0, p = 0; i < plane; i++, p += 4) {
+      data[p] += delta[i]
+      data[p + 1] += delta[plane + i]
+      data[p + 2] += delta[2 * plane + i]
+    }
+    return
+  }
 
   for (let y = 0; y < region.height; y++) {
-    for (let x = 0; x < region.width; x++) {
-      const src = y * region.width + x
-      const dst = ((region.y + y) * frame.width + (region.x + x)) * 4
+    let src = y * region.width
+    let dst = ((region.y + y) * frame.width + region.x) * 4
 
-      for (let c = 0; c < 3; c++) {
-        const base = frame.data[dst + c] / 127.5 - 1
-        const value = base + upscaled.data[c * plane + src] * strength
-        const clipped = value < -1 ? -1 : value > 1 ? 1 : value
-        // Uint8ClampedArray rounds half-to-even on assignment, matching the
-        // reference's uint8 cast closely enough for the model.
-        frame.data[dst + c] = clipped * 127.5 + 127.5
-      }
+    for (let x = 0; x < region.width; x++, src++, dst += 4) {
+      data[dst] += delta[src]
+      data[dst + 1] += delta[plane + src]
+      data[dst + 2] += delta[2 * plane + src]
     }
   }
 }
