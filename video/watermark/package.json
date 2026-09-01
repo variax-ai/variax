@@ -33,6 +33,7 @@
   "scripts": {
     "build": "tsup",
     "bench": "tsx bench/robustness.ts",
+    "bench:sparse": "tsx bench/sparse.ts",
     "check:browser": "tsx bench/browser/check.ts",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",

@@ -180,6 +180,52 @@ residual that flickers frame to frame is noise the video encoder has to spend
 bits on. Use `strategy: 'perFrame'` when frames within a shot differ enough that
 a shared residual stops matching.
 
+### Making it cheaper
+
+Marking is a full-resolution pass per frame, and on a phone that is most of what
+an export costs. Three levers, in the order they are worth reaching for:
+
+- **`inPlace: true`** marks the frames it is given instead of copying each one
+  first — 8MB of garbage per 1080p frame, which costs more in collection than in
+  memcpy. For callers that own their frames and have no use for the unmarked
+  originals. `watermarkFile` already does this.
+- **`sceneChangeThreshold: Infinity`** pins one residual to the whole sequence,
+  so the encoder runs exactly once. Worth it when recomputes are what cost;
+  the residual then comes from the first frame whatever follows it.
+- **Marking a fraction of the frames.** Every frame carries the same id, so the
+  frames in between can be left alone and a decoder can scan until it finds one.
+
+`npm run bench:sparse` measures the last one, because the intuition cuts both
+ways: a residual that appears for a single frame and vanishes is the kind of
+faint, isolated difference an encoder drops in favour of a skip block. Measured
+against the bench document at 30fps, through CRF 23 and a 10% centre crop, it
+does not:
+
+| Layout | Frames marked | Embedding | Every marked frame gives up the id |
+|---|---|---|---|
+| every frame | 120/120 | 18.2ms per delivered frame | yes |
+| 10 consecutive per second | 40/120 | 6.3ms | yes |
+| 3 consecutive per second | 12/120 | 3.5ms | yes |
+| 1 isolated per second | 4/120 | 3.1ms | yes |
+
+Forcing a keyframe where each run begins made no difference to recovery at these
+qualities. Two things the same run shows, which matter more than the timings:
+
+- **Unmarked frames do not stay at chance.** They read around 60% raw bit
+  accuracy next to a marked run, against the control row's ~53% for footage that
+  was never marked at all, so a shared residual bleeds through the codec's
+  prediction.
+- **Some of them decode a valid packet carrying the wrong id.** The data layer
+  falls back through the other schemas when the tag is damaged, and a partial
+  mark gives it enough to satisfy BCH. A scanner that stops at the first frame
+  that decodes will eventually report an id that was never embedded — require
+  the same id from more than one frame before believing it.
+
+And do not hand a sparsely marked clip to `extract`: it sums logits across every
+frame it is given, so a handful of marked frames end up buried under the noise
+of the rest. Scan with `decodeFrame` instead, and aggregate only across frames
+that agree.
+
 ## Measured robustness
 
 From `npm run bench`, on a real 1920x1080 Variax render — flat brand background,
@@ -195,12 +241,47 @@ for this style of watermark:
 | Downscaled to 640px | 100% | yes |
 | 10% centre crop | 100% | yes |
 | Re-encoded twice | 100% | yes |
-| *Control: unwatermarked* | *58%* | *no* |
+| *Control: unwatermarked* | *53%* | *no* |
 
-Mean PSNR 48.1 dB, at 31.5ms per 1080p frame with the default strategy.
+Mean PSNR 48.4 dB, at 17.4ms per 1080p frame with the default strategy.
 
 The control row is the important one — it lands near the 50% chance level, which
 is what shows the table above is measuring a real signal.
+
+### Platform conditions
+
+Those are transforms at a constant quality, where the encoder spends whatever
+bits the picture needs. A platform does not: it transcodes to a bitrate ladder
+with a hard cap, in a codec nobody here chose, sometimes at a frame rate or an
+aspect ratio nobody here chose either. The second table in `npm run bench`
+approximates that — from published ladder bitrates rather than from a capture of
+any real pipeline, and deliberately on the harsh side:
+
+| Condition | Raw bit accuracy | Payload recovered |
+|---|---|---|
+| VP9 at 720p, 1.5Mbps | 100% | yes |
+| AV1 at 720p, CRF 35 | 100% | yes |
+| H.264 720p capped at 2Mbps | 100% | yes |
+| H.264 480p capped at 800kbps | 100% | yes |
+| 30fps conformed to 25fps | 100% | yes |
+| **Reframed 16:9 to 9:16** | **56%** | **no** |
+| Trimmed to two seconds | 100% | yes |
+
+Codecs and bitrate caps turn out not to be the threat. **Reframing is.** A 10%
+centre crop is survivable and a vertical reframe is not: it throws away two
+thirds of the width, and the decoder resamples whatever it is handed into
+256x256, so what reaches the model is a different picture at a different scale
+from the one the mark was embedded into. 56% is the chance level — the mark is
+gone, not merely weakened.
+
+What follows from that is a delivery rule, not a decoding trick: **mark each
+aspect ratio you ship**. Render the vertical cut, then watermark it, rather than
+watermarking a 16:9 master and letting something downstream crop it. Recovering
+a mark from a reframed clip would mean the decoder searching candidate windows,
+which this package does not do.
+
+These rows do not gate the bench's exit code, since a limit that is measured and
+written down is not a regression. The summary line names any that failed.
 
 ## Verification
 
@@ -225,6 +306,9 @@ others cannot:
 | `browser.test.ts` | Node builtins reaching the browser entry | yes |
 | `runtime-web.test.ts` | the ort adapter diverging from `onnxruntime-web` | yes (gated) |
 | `npm run check:browser` | anything only a real browser engine shows | no — reports PASS/FAIL for a human |
+
+`npm run bench:sparse` is a second harness on the same models, covering how
+little of a clip can carry the mark; see [Making it cheaper](#making-it-cheaper).
 
 `check:browser` serves a page that embeds and extracts through the real
 `createRuntime` path. It reuses the cached models, so run the gated tests once

@@ -56,8 +56,23 @@ export interface EmbedOptions {
   /**
    * Signature distance above which `sharedResidual` recomputes. Measured in
    * [-1, 1] luma units, so 0.05 is roughly a 2.5% shift in average brightness.
+   *
+   * `Infinity` pins one residual to the whole sequence: the cheapest possible
+   * embed, at the cost of applying a residual derived from the first frame to
+   * content it may no longer resemble.
    */
   sceneChangeThreshold?: number
+  /**
+   * Mark the frames in place and hand back the same objects, instead of
+   * copying each one first.
+   *
+   * Saves a full-frame allocation and copy per frame. At 1080p that is 8MB of
+   * garbage per frame, which on a phone costs more in collection than in
+   * memcpy — so it is worth taking wherever the caller owns the frames and has
+   * no use for the unmarked originals. Callers that keep, reuse or pool their
+   * frame buffers must leave this off.
+   */
+  inPlace?: boolean
 }
 
 export interface ExtractOptions {
@@ -97,7 +112,7 @@ export class Watermarker {
     return new Watermarker(await loadModels(options))
   }
 
-  /** Embed a payload into a single frame, returning a new frame. */
+  /** Embed a payload into a single frame, returning a new one unless `inPlace`. */
   async embedFrame(
     frame: Frame,
     payload: PayloadInput,
@@ -111,12 +126,11 @@ export class Watermarker {
     const cover = toModelTensor(frame, this.models.config.encodeSize, region)
     const residual = await this.residualFor(cover, bits)
 
-    const out = cloneFrame(frame)
+    const out = options.inPlace ? frame : cloneFrame(frame)
     applyResidual(
       out,
-      upscaleResidual(residual, region),
+      upscaleResidual(residual, region, this.effectiveStrength(options)),
       region,
-      this.effectiveStrength(options),
     )
     return out
   }
@@ -159,11 +173,15 @@ export class Watermarker {
       if (strategy === 'perFrame' || stale) {
         const cover = toModelTensor(frame, size, region)
         const residual = await this.residualFor(cover, bits)
-        cached = { upscaled: upscaleResidual(residual, region), signature, region }
+        cached = {
+          upscaled: upscaleResidual(residual, region, strength),
+          signature,
+          region,
+        }
       }
 
-      const out = cloneFrame(frame)
-      applyResidual(out, cached!.upscaled, region, strength)
+      const out = options.inPlace ? frame : cloneFrame(frame)
+      applyResidual(out, cached!.upscaled, region)
       yield out
     }
   }
