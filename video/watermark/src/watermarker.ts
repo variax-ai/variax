@@ -101,6 +101,11 @@ const DEFAULT_SCENE_CHANGE_THRESHOLD = 0.05
 export class Watermarker {
   private readonly models: LoadedModels
   private readonly dataLayer: DataLayer
+  /** Reusable buffers to cut per-frame allocations on phones. */
+  private encodeTensor?: Float32Array
+  private decodeTensor?: Float32Array
+  private residualBuf?: Float32Array
+  private signatureBuf?: Float32Array
 
   constructor(models: LoadedModels, dataLayer = new DataLayer()) {
     this.models = models
@@ -123,7 +128,8 @@ export class Watermarker {
     const bits = this.packetFor(payload, schema)
 
     const region = watermarkRegion(frame.width, frame.height)
-    const cover = toModelTensor(frame, this.models.config.encodeSize, region)
+    const cover = toModelTensor(frame, this.models.config.encodeSize, region, this.encodeTensor)
+    this.encodeTensor = cover
     const residual = await this.residualFor(cover, bits)
 
     const out = options.inPlace ? frame : cloneFrame(frame)
@@ -162,7 +168,8 @@ export class Watermarker {
       const region = watermarkRegion(frame.width, frame.height)
       // Cheap enough to run unconditionally; the expensive tensor build below
       // only happens when this says the residual can no longer be reused.
-      const signature = frameSignature(frame, region)
+      const signature = frameSignature(frame, region, this.signatureBuf)
+      this.signatureBuf = signature
 
       const stale =
         !cached ||
@@ -171,7 +178,8 @@ export class Watermarker {
         signatureDistance(cached.signature, signature) > threshold
 
       if (strategy === 'perFrame' || stale) {
-        const cover = toModelTensor(frame, size, region)
+        const cover = toModelTensor(frame, size, region, this.encodeTensor)
+        this.encodeTensor = cover
         const residual = await this.residualFor(cover, bits)
         cached = {
           upscaled: upscaleResidual(residual, region, strength),
@@ -237,7 +245,8 @@ export class Watermarker {
     assertFrame(frame)
     const size = this.models.config.decodeSize
     const region = watermarkRegion(frame.width, frame.height)
-    const tensor = toModelTensor(frame, size, region)
+    const tensor = toModelTensor(frame, size, region, this.decodeTensor)
+    this.decodeTensor = tensor
 
     const decoder = await this.models.decoder()
     const outputs = await decoder.run({
@@ -286,6 +295,8 @@ export class Watermarker {
         `encoder produced no "${ENCODER_OUTPUT}" output (got ${Object.keys(outputs).join(', ')})`,
       )
     }
-    return computeResidual(cover, stego.data as Float32Array, size)
+    const planar = computeResidual(cover, stego.data as Float32Array, size, this.residualBuf)
+    this.residualBuf = planar.data
+    return planar
   }
 }

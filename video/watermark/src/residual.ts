@@ -24,6 +24,7 @@ export function computeResidual(
   cover: Float32Array,
   stego: Float32Array,
   size: number,
+  out?: Float32Array,
 ): Planar {
   const plane = size * size
   if (cover.length !== 3 * plane || stego.length !== 3 * plane) {
@@ -32,7 +33,7 @@ export function computeResidual(
     )
   }
 
-  const data = new Float32Array(3 * plane)
+  const data = out && out.length >= 3 * plane ? out : new Float32Array(3 * plane)
   for (let c = 0; c < 3; c++) {
     const base = c * plane
 
@@ -66,9 +67,13 @@ const SIGNATURE_CELLS = 16
  * reads 1024 pixels regardless of resolution, so most frames of a shot never
  * pay for the full-frame resample the model input would need.
  */
-export function frameSignature(frame: Frame, region: CropBox): Float32Array {
+export function frameSignature(
+  frame: Frame,
+  region: CropBox,
+  out?: Float32Array,
+): Float32Array {
   const cells = SIGNATURE_CELLS
-  const signature = new Float32Array(cells * cells)
+  const signature = out && out.length >= cells * cells ? out : new Float32Array(cells * cells)
 
   for (let cy = 0; cy < cells; cy++) {
     for (let cx = 0; cx < cells; cx++) {
