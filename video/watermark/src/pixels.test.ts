@@ -163,6 +163,42 @@ describe('applyResidual', () => {
 
     expect(() => applyResidual(frame, residual, region)).toThrow(/upscale it first/)
   })
+
+  it('refuses a residual of the right size with too few channels', () => {
+    const frame = createFrame(32, 32)
+    const region = watermarkRegion(32, 32)
+    // One plane where three are needed: the loop would read past the end and
+    // write NaN, which a clamped array silently stores as zero.
+    const single: Planar = {
+      width: 32,
+      height: 32,
+      channels: 1,
+      data: new Float32Array(32 * 32),
+    }
+
+    expect(() => applyResidual(frame, single, region)).toThrow(/upscale it first/)
+  })
+
+  it('refuses frame data that does not clamp', () => {
+    const region = { x: 0, y: 0, width: 2, height: 2 }
+    const residual: Planar = {
+      width: 2,
+      height: 2,
+      channels: 3,
+      data: new Float32Array(3 * 4).fill(0.1),
+    }
+    // Structurally a Frame, and what a Buffer-backed caller would hand in.
+    // Adding in byte space would wrap 250 to 6 rather than clamping to 255.
+    const frame = {
+      width: 2,
+      height: 2,
+      data: new Uint8Array(16).fill(250),
+    } as unknown as Frame
+
+    expect(() =>
+      applyResidual(frame, upscaleResidual(residual, region, 1.0), region),
+    ).toThrow(/Uint8ClampedArray/)
+  })
 })
 
 describe('upscaleResidual', () => {

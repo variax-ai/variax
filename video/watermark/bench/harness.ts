@@ -55,11 +55,20 @@ export function psnr(a: Uint8ClampedArray, b: Uint8ClampedArray): number {
  */
 export async function availableEncoders(): Promise<Set<string>> {
   return new Promise((resolve, reject) => {
-    const child = spawn('ffmpeg', ['-hide_banner', '-encoders'])
+    // stderr is discarded rather than left dangling: an undrained pipe blocks
+    // the child once it fills, and a failure here must not read as "this build
+    // has no codecs", which would silently skip every condition that names one.
+    const child = spawn('ffmpeg', ['-hide_banner', '-encoders'], {
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
     let stdout = ''
     child.stdout.on('data', (c) => (stdout += c))
     child.on('error', reject)
-    child.on('close', () => {
+    child.on('close', (code) => {
+      if (code !== 0) {
+        reject(new Error(`ffmpeg -encoders exited ${code}`))
+        return
+      }
       const names = new Set<string>()
       for (const line of stdout.split('\n')) {
         const match = /^\s*[A-Z.]{6}\s+(\S+)/.exec(line)

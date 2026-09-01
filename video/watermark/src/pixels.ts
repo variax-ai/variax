@@ -112,12 +112,27 @@ export function applyResidual(
   upscaled: Planar,
   region: CropBox,
 ): void {
-  if (upscaled.width !== region.width || upscaled.height !== region.height) {
+  // The clipping the reference does explicitly now lives in the array type, so
+  // the type has become load-bearing at runtime. A plain `Uint8Array` — a
+  // Buffer from a decoder, or anything a JavaScript caller hands in — wraps
+  // instead of clamping, turning a highlight at 250 into 6 rather than 255.
+  // Marking through `cloneFrame` never sees this; marking `inPlace` does.
+  if (!(frame.data instanceof Uint8ClampedArray)) {
     throw new Error(
-      `residual is ${upscaled.width}x${upscaled.height} but the region is ${region.width}x${region.height}; upscale it first`,
+      'frame data must be a Uint8ClampedArray: the residual is added in byte ' +
+        'space and relies on its clamping, where a plain Uint8Array wraps',
     )
   }
   const plane = region.width * region.height
+  if (
+    upscaled.width !== region.width ||
+    upscaled.height !== region.height ||
+    upscaled.data.length < 3 * plane
+  ) {
+    throw new Error(
+      `residual is ${upscaled.width}x${upscaled.height}x${upscaled.channels} but the region needs ${region.width}x${region.height}x3; upscale it first`,
+    )
+  }
   const data = frame.data
   const delta = upscaled.data
 

@@ -157,6 +157,17 @@ async function scan(
   expected: Uint8Array,
 ): Promise<ScanResult> {
   const info = await probe(file)
+  // `isMarked` maps a decoded frame index straight back to a source index, so
+  // a condition that dropped, duplicated or reordered frames would split the
+  // marked and unmarked columns along the wrong rows. None of the conditions
+  // above do; this makes adding one that does a loud failure rather than a
+  // quietly wrong table.
+  if (Math.round(info.fps) !== FPS) {
+    throw new Error(
+      `${file} came back at ${info.fps}fps rather than ${FPS}: a condition that ` +
+        'changes the frame rate breaks the marked/unmarked split',
+    )
+  }
   const dataLayer = new DataLayer()
 
   let map = ''
