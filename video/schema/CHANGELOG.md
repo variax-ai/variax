@@ -1,5 +1,11 @@
 # @variax-ai/video-schema
 
+## 0.3.2
+
+### Patch Changes
+
+- ba3f434: Add optional semantic layer metadata with a validated `metadata.role` vocabulary.
+
 ## 0.3.1
 
 ## 0.3.0

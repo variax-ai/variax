@@ -1,5 +1,12 @@
 # @variax-ai/video-renderer
 
+## 0.3.2
+
+### Patch Changes
+
+- Updated dependencies [ba3f434]
+  - @variax-ai/video-schema@0.3.2
+
 ## 0.3.1
 
 ### Patch Changes
