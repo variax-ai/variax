@@ -30,9 +30,10 @@
     "generate": "json2ts json/v1.json > src/v1.ts",
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "node --test test/*.test.mjs"
+    "test": "npm run build && node --test test/*.test.mjs"
   },
   "devDependencies": {
+    "ajv": "^8.20.0",
     "json-schema-to-typescript": "^15.0.0",
     "typescript": "^5.5.0"
   },

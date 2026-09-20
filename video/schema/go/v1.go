@@ -79,6 +79,9 @@ type CaptionSequenceLayer struct {
 	// MaxWidth corresponds to the JSON schema field "maxWidth".
 	MaxWidth *float64 `json:"maxWidth,omitempty,omitzero" yaml:"maxWidth,omitempty" mapstructure:"maxWidth,omitempty"`
 
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *LayerMetadata `json:"metadata,omitempty,omitzero" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
+
 	// Persist corresponds to the JSON schema field "persist".
 	Persist *bool `json:"persist,omitempty,omitzero" yaml:"persist,omitempty" mapstructure:"persist,omitempty"`
 
@@ -152,6 +155,9 @@ type CompositeMaskLayer struct {
 
 	// MaskEffect corresponds to the JSON schema field "maskEffect".
 	MaskEffect Effect `json:"maskEffect,omitempty,omitzero" yaml:"maskEffect,omitempty" mapstructure:"maskEffect,omitempty"`
+
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *LayerMetadata `json:"metadata,omitempty,omitzero" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
 
 	// Persist corresponds to the JSON schema field "persist".
 	Persist *bool `json:"persist,omitempty,omitzero" yaml:"persist,omitempty" mapstructure:"persist,omitempty"`
@@ -235,6 +241,9 @@ type DataVizLayer struct {
 
 	// Id corresponds to the JSON schema field "id".
 	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
+
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *LayerMetadata `json:"metadata,omitempty,omitzero" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
 
 	// Persist corresponds to the JSON schema field "persist".
 	Persist *bool `json:"persist,omitempty,omitzero" yaml:"persist,omitempty" mapstructure:"persist,omitempty"`
@@ -695,6 +704,9 @@ type GroupLayer struct {
 	// Id corresponds to the JSON schema field "id".
 	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
 
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *LayerMetadata `json:"metadata,omitempty,omitzero" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
+
 	// Persist corresponds to the JSON schema field "persist".
 	Persist *bool `json:"persist,omitempty,omitzero" yaml:"persist,omitempty" mapstructure:"persist,omitempty"`
 
@@ -792,6 +804,9 @@ type ImageLayer struct {
 	// Id corresponds to the JSON schema field "id".
 	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
 
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *LayerMetadata `json:"metadata,omitempty,omitzero" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
+
 	// Persist corresponds to the JSON schema field "persist".
 	Persist *bool `json:"persist,omitempty,omitzero" yaml:"persist,omitempty" mapstructure:"persist,omitempty"`
 
@@ -843,6 +858,13 @@ type Layer interface{}
 // Author-chosen identifier for a layer, unique within the document. Only needed by
 // things that refer to a layer, such as a shape's `sizeTo`.
 type LayerId string
+
+// Optional semantic annotations for a layer. This metadata does not affect
+// rendering.
+type LayerMetadata struct {
+	// Role corresponds to the JSON schema field "role".
+	Role *SemanticRole `json:"role,omitempty,omitzero" yaml:"role,omitempty" mapstructure:"role,omitempty"`
+}
 
 type NumberKeyframe struct {
 	// Easing corresponds to the JSON schema field "easing".
@@ -929,6 +951,9 @@ type RefLayer struct {
 	// Id corresponds to the JSON schema field "id".
 	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
 
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *LayerMetadata `json:"metadata,omitempty,omitzero" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
+
 	// Params corresponds to the JSON schema field "params".
 	Params RefLayerParams `json:"params,omitempty,omitzero" yaml:"params,omitempty" mapstructure:"params,omitempty"`
 
@@ -1007,6 +1032,9 @@ type RepeaterLayer struct {
 
 	// Id corresponds to the JSON schema field "id".
 	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
+
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *LayerMetadata `json:"metadata,omitempty,omitzero" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
 
 	// Persist corresponds to the JSON schema field "persist".
 	Persist *bool `json:"persist,omitempty,omitzero" yaml:"persist,omitempty" mapstructure:"persist,omitempty"`
@@ -1118,6 +1146,54 @@ func (j *Scene) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+type SemanticRole string
+
+const SemanticRoleBackground SemanticRole = "background"
+const SemanticRoleCaption SemanticRole = "caption"
+const SemanticRoleCta SemanticRole = "cta"
+const SemanticRoleDecoration SemanticRole = "decoration"
+const SemanticRoleHeadline SemanticRole = "headline"
+const SemanticRoleHook SemanticRole = "hook"
+const SemanticRoleLogo SemanticRole = "logo"
+const SemanticRoleProduct SemanticRole = "product"
+const SemanticRoleResult SemanticRole = "result"
+const SemanticRoleScore SemanticRole = "score"
+const SemanticRoleSubject SemanticRole = "subject"
+
+var enumValues_SemanticRole = []interface{}{
+	"hook",
+	"headline",
+	"caption",
+	"cta",
+	"result",
+	"score",
+	"logo",
+	"product",
+	"subject",
+	"background",
+	"decoration",
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (j *SemanticRole) UnmarshalJSON(value []byte) error {
+	var v string
+	if err := json.Unmarshal(value, &v); err != nil {
+		return err
+	}
+	var ok bool
+	for _, expected := range enumValues_SemanticRole {
+		if reflect.DeepEqual(v, expected) {
+			ok = true
+			break
+		}
+	}
+	if !ok {
+		return fmt.Errorf("invalid value (expected one of %#v): %#v", enumValues_SemanticRole, v)
+	}
+	*j = SemanticRole(v)
+	return nil
+}
+
 type Shadow struct {
 	// Blur corresponds to the JSON schema field "blur".
 	Blur float64 `json:"blur" yaml:"blur" mapstructure:"blur"`
@@ -1165,6 +1241,9 @@ type ShapeLayer struct {
 
 	// Id corresponds to the JSON schema field "id".
 	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
+
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *LayerMetadata `json:"metadata,omitempty,omitzero" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
 
 	// Path corresponds to the JSON schema field "path".
 	Path *string `json:"path,omitempty,omitzero" yaml:"path,omitempty" mapstructure:"path,omitempty"`
@@ -1382,6 +1461,9 @@ type StatBeatLayer struct {
 	// LabelFont corresponds to the JSON schema field "labelFont".
 	LabelFont *Font `json:"labelFont,omitempty,omitzero" yaml:"labelFont,omitempty" mapstructure:"labelFont,omitempty"`
 
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *LayerMetadata `json:"metadata,omitempty,omitzero" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
+
 	// Persist corresponds to the JSON schema field "persist".
 	Persist *bool `json:"persist,omitempty,omitzero" yaml:"persist,omitempty" mapstructure:"persist,omitempty"`
 
@@ -1522,6 +1604,9 @@ type TextLayer struct {
 	// MaxWidth corresponds to the JSON schema field "maxWidth".
 	MaxWidth *float64 `json:"maxWidth,omitempty,omitzero" yaml:"maxWidth,omitempty" mapstructure:"maxWidth,omitempty"`
 
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *LayerMetadata `json:"metadata,omitempty,omitzero" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
+
 	// MinSize corresponds to the JSON schema field "minSize".
 	MinSize *float64 `json:"minSize,omitempty,omitzero" yaml:"minSize,omitempty" mapstructure:"minSize,omitempty"`
 
@@ -1638,6 +1723,9 @@ type TrailLayer struct {
 
 	// Id corresponds to the JSON schema field "id".
 	Id *LayerId `json:"id,omitempty,omitzero" yaml:"id,omitempty" mapstructure:"id,omitempty"`
+
+	// Metadata corresponds to the JSON schema field "metadata".
+	Metadata *LayerMetadata `json:"metadata,omitempty,omitzero" yaml:"metadata,omitempty" mapstructure:"metadata,omitempty"`
 
 	// Persist corresponds to the JSON schema field "persist".
 	Persist *bool `json:"persist,omitempty,omitzero" yaml:"persist,omitempty" mapstructure:"persist,omitempty"`

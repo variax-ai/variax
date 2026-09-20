@@ -123,6 +123,26 @@ describe('validateDocument', () => {
     expect(result.scenes[0].id).toBe('scene-0')
   })
 
+  it('preserves semantic layer metadata', () => {
+    const doc = makeValidDoc({
+      scenes: [{
+        id: 's1',
+        startMs: 0,
+        endMs: 5000,
+        layers: [{
+          id: 'victory-title',
+          type: 'text',
+          content: 'Victory!',
+          metadata: { role: 'result' },
+        }],
+      }],
+    })
+
+    expect(validateDocument(doc).scenes[0].layers[0]).toMatchObject({
+      metadata: { role: 'result' },
+    })
+  })
+
   it('filters out layers with invalid types', () => {
     const doc = makeValidDoc({
       scenes: [{
