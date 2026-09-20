@@ -115,7 +115,9 @@ layout, animation, or asset resolution.
 Supported roles are: `hook`, `headline`, `caption`, `cta`, `result`, `score`,
 `logo`, `product`, `subject`, `background`, and `decoration`. `metadata` and
 `metadata.role` are both optional, so documents written before this field was
-introduced remain valid. An empty metadata object is also valid.
+introduced remain valid. An empty metadata object is also valid. The `use`
+substitution directive is not a rendered element; annotate the layer or layers
+in its referenced `defs` entry instead.
 
 For example, add a semantic result annotation to an existing text layer without
 changing how it renders:
