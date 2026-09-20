@@ -26,13 +26,18 @@ describe('createDocumentDrawer', () => {
   it('does not let semantic metadata change rendering', () => {
     const scene = {
       id: 's1', startMs: 0, endMs: 5000,
-      layers: [{ type: 'text' as const, content: 'Victory!', position: [960, 540] as [number, number] }],
+      layers: [{
+        id: 'victory-title',
+        type: 'text' as const,
+        content: 'Victory!',
+        position: [960, 540] as [number, number],
+      }],
     }
     const withoutMetadata = makeDoc({ scenes: [scene] })
     const withMetadata = makeDoc({
       scenes: [{
         ...scene,
-        layers: [{ ...scene.layers[0], id: 'victory-title', metadata: { role: 'result' } }],
+        layers: [{ ...scene.layers[0], metadata: { role: 'result' } }],
       }],
     })
     const plainCtx = createStubCtx()

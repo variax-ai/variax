@@ -122,12 +122,25 @@ changing how it renders:
 
 ```json
 {
-  "id": "victory-title",
-  "type": "text",
-  "content": "Victory!",
-  "font": { "size": 64 },
-  "position": [540, 960],
-  "metadata": { "role": "result" }
+  "$schema": "https://variax.dev/schemas/video/v1.json",
+  "version": 1,
+  "width": 1080,
+  "height": 1920,
+  "fps": 30,
+  "durationMs": 3000,
+  "scenes": [{
+    "id": "result",
+    "startMs": 0,
+    "endMs": 3000,
+    "layers": [{
+      "id": "victory-title",
+      "type": "text",
+      "content": "Victory!",
+      "font": { "size": 64 },
+      "position": [540, 960],
+      "metadata": { "role": "result" }
+    }]
+  }]
 }
 ```
 

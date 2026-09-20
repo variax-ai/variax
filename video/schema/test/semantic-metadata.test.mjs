@@ -29,6 +29,17 @@ test('metadata is optional and may be empty', () => {
   assertValid(document({ type: 'text', content: 'Hello', metadata: {} }))
 })
 
+test('every renderable layer uses the shared metadata definition', () => {
+  const layerDefinitions = schema.definitions.Layer.oneOf.map(({ $ref }) => $ref.split('/').at(-1))
+  const renderableDefinitions = layerDefinitions.filter(name => name !== 'UseLayer')
+
+  for (const name of renderableDefinitions) {
+    assert.deepEqual(schema.definitions[name].properties.metadata, {
+      $ref: '#/definitions/LayerMetadata',
+    })
+  }
+})
+
 test('every semantic role is valid on a layer', () => {
   const roles = [
     'hook', 'headline', 'caption', 'cta', 'result', 'score', 'logo', 'product',
