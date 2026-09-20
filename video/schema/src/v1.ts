@@ -114,6 +114,21 @@ export type Scalar = string | number | boolean;
  * Author-chosen identifier for a layer, unique within the document. Only needed by things that refer to a layer, such as a shape's `sizeTo`.
  */
 export type LayerId = string;
+/**
+ * The semantic purpose of a layer. This annotation does not affect rendering.
+ */
+export type SemanticRole =
+  | "hook"
+  | "headline"
+  | "caption"
+  | "cta"
+  | "result"
+  | "score"
+  | "logo"
+  | "product"
+  | "subject"
+  | "background"
+  | "decoration";
 export type Background =
   | string
   | {
@@ -247,6 +262,7 @@ export interface ShapeLayer {
   persist?: boolean;
   visibleIf?: Condition;
   id?: LayerId;
+  metadata?: LayerMetadata;
 }
 /**
  * Derives a shape's box from the text layer it backs, so a card grows with the message inside it. The renderer is the only thing that knows how the text wraps, and sizing it here is what lets a document whose text comes from a var be authored ahead of time instead of built at render time. The box is the text's laid-out extent plus `padding` on each side, centred on the shape's own origin — position the text at the same point to have them line up.
@@ -296,6 +312,12 @@ export interface DownscaleBlurEffect {
   radius: AnimatedNumber;
   shrink: AnimatedNumber;
 }
+/**
+ * Optional semantic annotations for a layer. This metadata does not affect rendering.
+ */
+export interface LayerMetadata {
+  role?: SemanticRole;
+}
 export interface TextLayer {
   type: "text";
   content: string | TemplateString;
@@ -315,6 +337,7 @@ export interface TextLayer {
   persist?: boolean;
   visibleIf?: Condition;
   id?: LayerId;
+  metadata?: LayerMetadata;
 }
 export interface TemplateString {
   template: string;
@@ -338,6 +361,7 @@ export interface ImageLayer {
   persist?: boolean;
   visibleIf?: Condition;
   id?: LayerId;
+  metadata?: LayerMetadata;
 }
 export interface Frame {
   x: number;
@@ -357,6 +381,7 @@ export interface GroupLayer {
   persist?: boolean;
   visibleIf?: Condition;
   id?: LayerId;
+  metadata?: LayerMetadata;
 }
 export interface RefLayer {
   type: "ref";
@@ -374,6 +399,7 @@ export interface RefLayer {
   persist?: boolean;
   visibleIf?: Condition;
   id?: LayerId;
+  metadata?: LayerMetadata;
 }
 export interface RepeaterLayer {
   type: "repeater";
@@ -387,6 +413,7 @@ export interface RepeaterLayer {
   persist?: boolean;
   visibleIf?: Condition;
   id?: LayerId;
+  metadata?: LayerMetadata;
 }
 export interface CaptionSequenceLayer {
   type: "captionSequence";
@@ -408,6 +435,7 @@ export interface CaptionSequenceLayer {
   persist?: boolean;
   visibleIf?: Condition;
   id?: LayerId;
+  metadata?: LayerMetadata;
 }
 export interface CaptionEntry {
   t: number;
@@ -436,6 +464,7 @@ export interface CompositeMaskLayer {
   persist?: boolean;
   visibleIf?: Condition;
   id?: LayerId;
+  metadata?: LayerMetadata;
 }
 /**
  * Motion history: samples `source` at past times and unions a circle per sample, radius shrinking with age. Emits vector geometry only (no imagery), which is what makes it usable as a compositeMask mask. `source` is the moving point whose path is sampled — it must be declarative so the renderer can re-evaluate it at past times, and is interpreted in absolute document coordinates. `radius` is the radius of the freshest sample. `stroke` draws a polyline through the sample centres with round caps and joins. Samples older than the layer's own `startMs` are dropped.
@@ -472,6 +501,7 @@ export interface TrailLayer {
   persist?: boolean;
   visibleIf?: Condition;
   id?: LayerId;
+  metadata?: LayerMetadata;
 }
 export interface DataVizLayer {
   type: "dataViz";
@@ -498,6 +528,7 @@ export interface DataVizLayer {
   persist?: boolean;
   visibleIf?: Condition;
   id?: LayerId;
+  metadata?: LayerMetadata;
 }
 export interface StatBeatLayer {
   type: "statBeat";
@@ -518,6 +549,7 @@ export interface StatBeatLayer {
   persist?: boolean;
   visibleIf?: Condition;
   id?: LayerId;
+  metadata?: LayerMetadata;
 }
 export interface StatBeatEntry {
   value: number | string;

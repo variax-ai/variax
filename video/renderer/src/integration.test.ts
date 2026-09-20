@@ -23,6 +23,27 @@ describe('createDocumentDrawer', () => {
     expect(typeof draw).toBe('function')
   })
 
+  it('does not let semantic metadata change rendering', () => {
+    const scene = {
+      id: 's1', startMs: 0, endMs: 5000,
+      layers: [{ type: 'text' as const, content: 'Victory!', position: [960, 540] as [number, number] }],
+    }
+    const withoutMetadata = makeDoc({ scenes: [scene] })
+    const withMetadata = makeDoc({
+      scenes: [{
+        ...scene,
+        layers: [{ ...scene.layers[0], id: 'victory-title', metadata: { role: 'result' } }],
+      }],
+    })
+    const plainCtx = createStubCtx()
+    const metadataCtx = createStubCtx()
+
+    createDocumentDrawer(withoutMetadata, { vars: {}, images: {} })(plainCtx, 1000)
+    createDocumentDrawer(withMetadata, { vars: {}, images: {} })(metadataCtx, 1000)
+
+    expect(metadataCtx.calls).toEqual(plainCtx.calls)
+  })
+
   it('indexes font assets from the document', () => {
     const doc = makeDoc({
       assets: {

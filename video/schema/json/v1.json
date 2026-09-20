@@ -302,6 +302,21 @@
       "type": "string"
     },
 
+    "SemanticRole": {
+      "description": "The semantic purpose of a layer. This annotation does not affect rendering.",
+      "type": "string",
+      "enum": ["hook", "headline", "caption", "cta", "result", "score", "logo", "product", "subject", "background", "decoration"]
+    },
+
+    "LayerMetadata": {
+      "description": "Optional semantic annotations for a layer. This metadata does not affect rendering.",
+      "type": "object",
+      "properties": {
+        "role": { "$ref": "#/definitions/SemanticRole" }
+      },
+      "additionalProperties": false
+    },
+
     "SizeTo": {
       "description": "Derives a shape's box from the text layer it backs, so a card grows with the message inside it. The renderer is the only thing that knows how the text wraps, and sizing it here is what lets a document whose text comes from a var be authored ahead of time instead of built at render time. The box is the text's laid-out extent plus `padding` on each side, centred on the shape's own origin — position the text at the same point to have them line up.",
       "type": "object",
@@ -415,7 +430,8 @@
         "endMs": { "type": "number", "minimum": 0 },
         "persist": { "type": "boolean" },
         "visibleIf": { "$ref": "#/definitions/Condition" },
-        "id": { "$ref": "#/definitions/LayerId" }
+        "id": { "$ref": "#/definitions/LayerId" },
+        "metadata": { "$ref": "#/definitions/LayerMetadata" }
       },
       "additionalProperties": false
     },
@@ -446,7 +462,8 @@
         "endMs": { "type": "number", "minimum": 0 },
         "persist": { "type": "boolean" },
         "visibleIf": { "$ref": "#/definitions/Condition" },
-        "id": { "$ref": "#/definitions/LayerId" }
+        "id": { "$ref": "#/definitions/LayerId" },
+        "metadata": { "$ref": "#/definitions/LayerMetadata" }
       },
       "additionalProperties": false
     },
@@ -464,7 +481,8 @@
         "endMs": { "type": "number", "minimum": 0 },
         "persist": { "type": "boolean" },
         "visibleIf": { "$ref": "#/definitions/Condition" },
-        "id": { "$ref": "#/definitions/LayerId" }
+        "id": { "$ref": "#/definitions/LayerId" },
+        "metadata": { "$ref": "#/definitions/LayerMetadata" }
       },
       "additionalProperties": false
     },
@@ -485,7 +503,8 @@
         "endMs": { "type": "number", "minimum": 0 },
         "persist": { "type": "boolean" },
         "visibleIf": { "$ref": "#/definitions/Condition" },
-        "id": { "$ref": "#/definitions/LayerId" }
+        "id": { "$ref": "#/definitions/LayerId" },
+        "metadata": { "$ref": "#/definitions/LayerMetadata" }
       },
       "additionalProperties": false
     },
@@ -506,7 +525,8 @@
         "endMs": { "type": "number", "minimum": 0 },
         "persist": { "type": "boolean" },
         "visibleIf": { "$ref": "#/definitions/Condition" },
-        "id": { "$ref": "#/definitions/LayerId" }
+        "id": { "$ref": "#/definitions/LayerId" },
+        "metadata": { "$ref": "#/definitions/LayerMetadata" }
       },
       "additionalProperties": false
     },
@@ -525,7 +545,8 @@
         "endMs": { "type": "number", "minimum": 0 },
         "persist": { "type": "boolean" },
         "visibleIf": { "$ref": "#/definitions/Condition" },
-        "id": { "$ref": "#/definitions/LayerId" }
+        "id": { "$ref": "#/definitions/LayerId" },
+        "metadata": { "$ref": "#/definitions/LayerMetadata" }
       },
       "additionalProperties": false
     },
@@ -553,7 +574,8 @@
         "endMs": { "type": "number", "minimum": 0 },
         "persist": { "type": "boolean" },
         "visibleIf": { "$ref": "#/definitions/Condition" },
-        "id": { "$ref": "#/definitions/LayerId" }
+        "id": { "$ref": "#/definitions/LayerId" },
+        "metadata": { "$ref": "#/definitions/LayerMetadata" }
       },
       "additionalProperties": false
     },
@@ -598,7 +620,8 @@
         "endMs": { "type": "number", "minimum": 0 },
         "persist": { "type": "boolean" },
         "visibleIf": { "$ref": "#/definitions/Condition" },
-        "id": { "$ref": "#/definitions/LayerId" }
+        "id": { "$ref": "#/definitions/LayerId" },
+        "metadata": { "$ref": "#/definitions/LayerMetadata" }
       },
       "additionalProperties": false
     },
@@ -621,7 +644,8 @@
         "endMs": { "type": "number", "minimum": 0 },
         "persist": { "type": "boolean" },
         "visibleIf": { "$ref": "#/definitions/Condition" },
-        "id": { "$ref": "#/definitions/LayerId" }
+        "id": { "$ref": "#/definitions/LayerId" },
+        "metadata": { "$ref": "#/definitions/LayerMetadata" }
       },
       "additionalProperties": false
     },
@@ -651,7 +675,8 @@
         "endMs": { "type": "number", "minimum": 0 },
         "persist": { "type": "boolean" },
         "visibleIf": { "$ref": "#/definitions/Condition" },
-        "id": { "$ref": "#/definitions/LayerId" }
+        "id": { "$ref": "#/definitions/LayerId" },
+        "metadata": { "$ref": "#/definitions/LayerMetadata" }
       },
       "additionalProperties": false
     },
@@ -678,7 +703,8 @@
         "endMs": { "type": "number", "minimum": 0 },
         "persist": { "type": "boolean" },
         "visibleIf": { "$ref": "#/definitions/Condition" },
-        "id": { "$ref": "#/definitions/LayerId" }
+        "id": { "$ref": "#/definitions/LayerId" },
+        "metadata": { "$ref": "#/definitions/LayerMetadata" }
       },
       "additionalProperties": false
     },

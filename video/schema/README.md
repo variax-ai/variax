@@ -102,8 +102,46 @@ VideoDocument
 | `statBeat` | animated counter(s) with labels |
 | `use` | substitutes a layer (or layer array) from `defs` |
 
-Every layer accepts `transform`, `effects`, `startMs`/`endMs`, `persist`,
-`visibleIf`, and `id`.
+Every renderable layer accepts `transform`, `effects`, `startMs`/`endMs`,
+`persist`, `visibleIf`, `id`, and optional `metadata`.
+
+## Semantic metadata
+
+A layer's `id` identifies that particular layer, while `type` selects how it is
+rendered. `metadata.role` optionally states the layer's semantic purpose for
+consumers that analyze or vary a document. It never changes rendering, timing,
+layout, animation, or asset resolution.
+
+Supported roles are: `hook`, `headline`, `caption`, `cta`, `result`, `score`,
+`logo`, `product`, `subject`, `background`, and `decoration`. `metadata` and
+`metadata.role` are both optional, so documents written before this field was
+introduced remain valid. An empty metadata object is also valid.
+
+For example, add a semantic result annotation to an existing text layer without
+changing how it renders:
+
+```json
+{
+  "id": "victory-title",
+  "type": "text",
+  "content": "Victory!",
+  "font": { "size": 64 },
+  "position": [540, 960],
+  "metadata": { "role": "result" }
+}
+```
+
+`metadata` intentionally contains only `role` in v1. The role vocabulary is a
+shared schema enum, so unknown roles are invalid rather than silently acquiring
+inconsistent meanings.
+
+### `contentId`
+
+The video schema has never defined `content_id` or `contentId`. Repository-wide
+inspection found `contentId` only in `@variax-ai/video-watermark`, where it is
+the watermark payload's opaque, stable identifier for a piece of content. It is
+used to embed and recover a watermark and is explicitly not semantic metadata,
+so it is preserved unchanged and is not replaced by `metadata.role`.
 
 ## Ref strings
 
